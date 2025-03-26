@@ -1,4 +1,4 @@
-# Beispiel für ein Python-Programm, das die ersten 10 Primzahlen ausgibt
+
 import pandas as pd
 
 df = pd.read_excel(r'data\Endenergiebedarf_AGEB\EBD22e.xlsx')
