@@ -56,7 +56,9 @@ queries = [
     ('ENDENERGIEVERBRAUCH', 'Unnamed: 34'),
     ('Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe', 'Unnamed: 34'),
     ('Verkehr insgesamt', 'Unnamed: 34'),
-    ('Haushalte, Gewerbe, Handel und Dienstleistungen', 'Unnamed: 34')
+    ('Haushalte','Unnamed: 34'),
+    ('Gewerbe, Handel, Dienstleistungen','Unnamed: 34'),
+   
 ]
 
 df_answer = get_values_from_dataframe(df_AGEB, queries)
@@ -71,14 +73,16 @@ queries = [
     ('ENDENERGIEVERBRAUCH', 'Unnamed: 29'),
     ('Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe', 'Unnamed: 29'),
     ('Verkehr insgesamt', 'Unnamed: 29'),
-    ('Haushalte, Gewerbe, Handel und Dienstleistungen', 'Unnamed: 29')
+    ('Haushalte','Unnamed: 29'),
+    ('Gewerbe, Handel, Dienstleistungen','Unnamed: 29'),
+   
 ]
 
 df_answer = get_values_from_dataframe(df_AGEB, queries)
 df_EEB_Sektoren['Strom'] = df_answer.set_index('Row')['Value']  # Ergänzt die Werte aus 'Value' passend zum Index
 
 
-#df_EEB_Sektoren = df_EEB_Sektoren.drop(df_EEB_Sektoren.index[0])
+#Anteile der einzelnen Sektoren am Gesamtverbrauch berechnen
 
 df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Anteil_Summe']=df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
 df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Anteil_Strom']=df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
@@ -86,11 +90,33 @@ df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Anteil
 df_EEB_Sektoren.loc['Verkehr insgesamt','Anteil_Summe']=df_EEB_Sektoren.loc['Verkehr insgesamt','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
 df_EEB_Sektoren.loc['Verkehr insgesamt','Anteil_Strom']=df_EEB_Sektoren.loc['Verkehr insgesamt','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
 
-df_EEB_Sektoren.loc['Haushalte, Gewerbe, Handel und Dienstleistungen','Anteil_Summe']=df_EEB_Sektoren.loc['Haushalte, Gewerbe, Handel und Dienstleistungen','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
-df_EEB_Sektoren.loc['Haushalte, Gewerbe, Handel und Dienstleistungen','Anteil_Strom']=df_EEB_Sektoren.loc['Haushalte, Gewerbe, Handel und Dienstleistungen','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
+df_EEB_Sektoren.loc['Haushalte','Anteil_Summe']=df_EEB_Sektoren.loc['Haushalte','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
+df_EEB_Sektoren.loc['Haushalte','Anteil_Strom']=df_EEB_Sektoren.loc['Haushalte','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
+
+df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Anteil_Summe']=df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
+df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Anteil_Strom']=df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
 
 
-#%%
+#Hier wird die Gesamtenergie für 2022 berechnet
+
+df_Last_22 = pd.DataFrame()
+df_Last_22 ['Last [MW]']=df_Nettostromerzeugung_22['Last']
+
+df_Last_22 = df_Last_22.astype(float)  # Konvertiert die Werte in float, falls sie als Strings gespeichert sind
+df_Last_22 = df_Last_22.dropna()  # Entfernt NaN-Werte
+
+df_Last_22['Energie [MWh]'] = df_Last_22['Last [MW]']/4
+
+var_Summe_Last_22 = df_Last_22['Energie [MWh]'].sum()  # Berechnet die Summe der Energie
+
+var_Summe_Last_22_TWh = var_Summe_Last_22 / 1000000  # Umwandlung in TWh
+var_Summe_Last_22_TWh = round(var_Summe_Last_22_TWh, 2)  # Rundet auf 2 Dezimalstellen
 
 
-df_Last_22=df_Nettostromerzeugung_22['Last']
+
+#Hier wird die Gesamtenergie auf die Sektoren aufgeteilt
+
+df_EEB_Sektoren ['Energiemenge_anteilig [MWh]'] = df_EEB_Sektoren['Anteil_Strom']*var_Summe_Last_22
+
+print('Die Energiemenge für 2022 beträgt:', var_Summe_Last_22_TWh, 'TWh')
+
