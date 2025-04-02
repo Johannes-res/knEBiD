@@ -1,5 +1,10 @@
 import pandas as pd
 import holidays
+import numpy as np
+import matplotlib.pyplot as plt
+import datetime
+import matplotlib.dates as mdates
+import locale
 
 
 #%% Daten laden
@@ -163,9 +168,9 @@ var_Summe_Last_22_TWh = round(var_Summe_Last_22_TWh, 2)  # Rundet auf 2 Dezimals
 
 #Hier wird die Gesamtenergie auf die Sektoren aufgeteilt
 
-df_EEB_Sektoren ['Energiemenge_anteilig [MWh]'] = df_EEB_Sektoren['Anteil_Strom']*var_Summe_Last_22
+df_EEB_Sektoren ['Stromenergiemenge_anteilig [MWh]'] = df_EEB_Sektoren['Anteil_Strom']*var_Summe_Last_22
 
-print('Die Energiemenge für 2022 beträgt:', var_Summe_Last_22_TWh, 'TWh')
+print('Die Stromenergiemenge für 2022 beträgt:', var_Summe_Last_22_TWh, 'TWh')
 
 
 
@@ -242,10 +247,315 @@ def ergänze_lastprofile(df_last, df_g25, df_h25):
     df_last['H25'] = df_last.apply(
         lambda row: df_h25.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
     )
+
     return df_last
 
-df_Last_22 = ergänze_lastprofile(df_Last_22, df_Lastprofil_G25, df_Lastprofil_H25)
+df_Last_22_mit_Profilen = ergänze_lastprofile(df_Last_22, df_Lastprofil_G25, df_Lastprofil_H25)
 
-print(df_Last_22.head())
+
+#%% Sektorenzeitreihen modellieren
+def saisonschwankungen_modellieren(t):
+    """
+    Simuliert saisonale Schwankungen im Stromverbrauch (x = Tag 1-365)
+    Gibt relativen Verbrauchsfaktor zurück (1.0 = Durchschnitt)
+    """
+    # Jahreszeitliche Grundschwingung (Hauptmaximum im Winter)
+    saison = 0.25 * np.cos(2*np.pi*(t - 15)/365)
+    
+    # Weihnachtseffekt (Spitze im Dezember)
+    weihnachten = 0.1 * np.exp(-((t - 355)/10)**2)
+    
+    # Sommerdip mit leichtem Anstieg durch Kühlung
+    sommer = -0.15 * np.exp(-((t - 200)/60)**2)
+    
+    # Zufällige tägliche Schwankungen (Rauschen)
+    rauschen = 0.05 * np.random.normal()
+    
+    return 1.0 + saison + weihnachten + sommer + rauschen
+
+
+def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte, ESB_Verkehr):
+    """
+    #Als Übergabe muss ein Zeitreihen-Dataframe mit den Lastprofilzeitreihen übergeben werden (stammt von df_Last_22_mit_Profilen)
+    #Es müssen die Jahresstrommengen für die einzelnen Sektoren übergeben werden (stammt von df_EEB_Sektoren)
+    
+    
+    Hier werden die Lastprofile mit den Stromverbräuchen der Sektoren multipliziert
+    Die Lastprofile sind auf 1Mio. kWH normiert, weswegen durch 1000 geteilt werden muss um auf 1MWh zu kommen
+    Für die Flexibilität wird die Rechnung mit dem gleichverteilenden Anteil erweitert """
+
+    t= df_last.index.dayofyear
+    #Die Lastprofile sind auf 1Mio. kWH normiert, weswegen durch 1000 geteilt werden muss um auf 1MWh zu kommen. Dann wird mit dem Endstrombedarf des Sektors multipliziert
+    # Die Viertelstundenwerte sind in kWh angegeben, daher wird durch 10e3 geteilt, um auf MWh zu kommen
+
+    df_last['Industrie'] = ((df_last['G25']/1e3) * ESB_Industrie)/1e3
+    df_last['GHD'] = ((df_last['G25']/1e3) * ESB_GHD)/1e3
+    df_last['Haushalte_stat'] = ((df_last['H25']/1e3) * ESB_Haushalte)/1e3
+    df_last['Haushalte_dyn'] = ((df_last['H25'] / 1e3) * ESB_Haushalte) * (-3.92e-10 * t**4 + 3.2e-7 * t**3 - 7.02e-5 * t + 2.1e-3*t + 1.24)/1e3
+    df_last['Verkehr'] = (ESB_Verkehr / len(df_last))
+
+    df_last['Summe_Sektoren_modelliert'] = df_last['Industrie'] + df_last['GHD'] + df_last['Haushalte_stat']+df_last['Verkehr']*saisonschwankungen_modellieren(t)
+
+
+
+    return df_last
+#Endstrombedarfsanteile für die einzelnen Sektoren
+#Hier die Werte für die Variablen definieren, die in der Funktion modelliere_Sektorenzeitreihen verwendet werden
+ESB_Industrie       = df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]']
+ESB_GHD             = df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]']
+ESB_Haushalte       = df_EEB_Sektoren.loc['Haushalte','Stromenergiemenge_anteilig [MWh]']
+ESB_Verkehr         = df_EEB_Sektoren.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]']
+
+
+df_Sektorenzeitreihen_mod_1 = modelliere_Sektorenzeitreihen(df_Last_22_mit_Profilen, df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'])
+
+#Speichern der Zwischenergebnisse in eine Excel-Datei
+df_Sektorenzeitreihen_mod_1.to_excel(r'C:\Users\HansisRasanterRaser\Desktop\UNI\000_DA\git\knEBiD\data\Ausgabe\Netzlast und Sektoren nach Profilen_22.xlsx')
+
+
+
+
+t= df_Sektorenzeitreihen_mod_1.index.dayofyear
+
+
+df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_1.copy()
+df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_2.iloc[:, :1]
+df_Sektorenzeitreihen_mod_2['Energie [MWh]'] = df_Sektorenzeitreihen_mod_1['Energie [MWh]']
+df_Sektorenzeitreihen_mod_2['Industrie'] = df_Sektorenzeitreihen_mod_1['Industrie'] * 0.8 + (ESB_Industrie/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['GHD'] = df_Sektorenzeitreihen_mod_1['GHD'] * 0.8 + (ESB_GHD/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['Haushalte_stat'] = df_Sektorenzeitreihen_mod_1['Haushalte_stat'] * 0.8 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['Haushalte_dyn'] = df_Sektorenzeitreihen_mod_1['Haushalte_dyn'] * 0.8 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['Verkehr'] = df_Sektorenzeitreihen_mod_1['Verkehr'] * 0.8 + (ESB_Verkehr/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['Summe_Sektoren_modelliert'] = df_Sektorenzeitreihen_mod_2['Industrie'] + df_Sektorenzeitreihen_mod_2['GHD'] + df_Sektorenzeitreihen_mod_2['Haushalte_stat']+df_Sektorenzeitreihen_mod_2['Verkehr']*saisonschwankungen_modellieren(t)
+
+
+
+
+
+#%% Statistische Auswertung
+
+def stat_auswertung(df_auswerten, spalte1, spalte2, spalte3):
+    """
+    Führt eine statistische Auswertung des DataFrames durch und gibt die Ergebnisse zurück.
+
+    :param df_last: Der DataFrame, der ausgewertet werden soll.
+    :return: Ein DataFrame mit den statistischen Auswertungen.
+    """
+    # Berechnung der statistischen Kennzahlen
+    mean = df_auswerten[spalte1].mean()
+    std = df_auswerten[spalte1].std()
+    min_val = df_auswerten[spalte1].min()
+    max_val = df_auswerten[spalte1].max()
+
+    # Erstelle ein neues DataFrame für die Ergebnisse
+    results = pd.DataFrame({
+        'Mittelwert': mean,
+        'Standardabweichung': std,
+        'Minimum': min_val,
+        'Maximum': max_val
+    })
+
+    return results
+
+#%% Graphische Darstellung
+
+def plot_daily_aggregation(df, columns, highlight_date=None, title=None, ylabel=None, legend_labels=None):
+    """
+    Erstellt ein Diagramm mit täglicher Aggregation für mehrere ausgewählte Spalten und optional einem hervorgehobenen Datum.
+    
+    :param df: pandas DataFrame mit Zeitreihenindex
+    :param columns: Liste der Spaltennamen, die geplottet werden sollen
+    :param highlight_date: Datum zum Hervorheben im Format 'YYYY-MM-DD' (optional)
+    :param title: Titel des Diagramms (optional)
+    :param ylabel: Beschriftung der y-Achse (optional)
+    :param legend_labels: Benutzerdefinierte Labels für die Legende (optional)
+    """
+    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    fig, ax = plt.subplots(figsize=(15, 8))
+
+    lines = []
+    for column in columns:
+        # Tägliche Aggregation
+        df_daily = df[column].resample('D').agg(['mean', 'min', 'max'])
+
+        # Diagramm erstellen
+        ax.fill_between(df_daily.index, df_daily['min'], df_daily['max'], alpha=0.3)
+        line, = ax.plot(df_daily.index, df_daily['mean'], label=column)
+        lines.append(line)
+
+        # Hervorheben des spezifischen Datums, falls angegeben
+        if highlight_date:
+            highlight_date = pd.to_datetime(highlight_date)
+            if highlight_date in df_daily.index:
+                value_at_highlight = df_daily.loc[highlight_date, 'mean']
+                # ax.scatter(highlight_date, value_at_highlight, color='red', s=100, zorder=5)
+                # ax.annotate(f'{int(value_at_highlight)}', (highlight_date, value_at_highlight), 
+                             # xytext=(5, 5), textcoords='offset points', color='red')
+
+    ax.set_xlabel('Zeit in Monaten', fontsize=14)
+    ax.set_ylabel(ylabel if ylabel else ', '.join(columns), fontsize=14)
+    ax.set_title(title if title else f'Tägliche Werte über ein Jahr', fontsize=16)
+    ax.grid(True, linestyle='--', alpha=0.7)
+
+    # X-Achse formatieren
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+    fig.autofmt_xdate()
+
+    # Hervorgehobenes Datum auf x-Achse anzeigen
+    if highlight_date:
+        ax.axvline(x=highlight_date, color='red', linestyle='--', alpha=0.5)
+        # ax.text(highlight_date, ax.get_ylim()[0], highlight_date.strftime('%Y-%m-%d'), 
+                 # rotation=90, va='bottom', ha='right', color='red', alpha=0.7)
+
+    # Legende mit benutzerdefinierten Labels anzeigen
+    if legend_labels:
+        ax.legend(lines, legend_labels, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=len(columns), fontsize=14)
+    else:
+        ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=len(columns), fontsize=14)
+
+    plt.tight_layout()
+    return fig, ax
+#%% Beispielaufruf
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netz', 'Modellierung']
+fig, ax = plot_daily_aggregation(df_Sektorenzeitreihen_mod_2, selected_columns, 
+                       highlight_date='2022-07-03',
+                       title='Netzlast und modellierter Verbrauch für das Jahr 2022', 
+                       ylabel='Energie in MWh',
+                       legend_labels=custom_labels)
+
+# Speichern der Figur
+plt.savefig(r'graphics\test_01.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
+
+# plot_daily_aggregation(df_37, selected_columns, 
+#                        highlight_date='2037-07-12',
+#                        title='modellierte Last und umrichterbasierte Erzeugung für das Jahr 2037', 
+#                        ylabel='Leistung in MW',
+#                        legend_labels=custom_labels)
+
+# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Jahr_37.png', dpi=300, bbox_inches='tight')
+
+# plot_daily_aggregation(df_45, selected_columns, 
+#                        highlight_date='2045-07-12',
+#                        title='modellierte Last und umrichterbasierte Erzeugung für das Jahr 2045', 
+#                        ylabel='Leistung in MW',
+#                        legend_labels=custom_labels)
+# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Jahr_45.png', dpi=300, bbox_inches='tight')
 
 #%%
+def plot_selected_days(df, columns, days, highlight_time=None, title=None, ylabel=None, legend_labels=None):
+    """
+    Erstellt ein Diagramm für ausgewählte Tage und mehrere Spalten, mit Option zum Hervorheben eines spezifischen Zeitpunkts.
+    
+    :param df: pandas DataFrame mit Zeitreihenindex
+    :param columns: Liste der Spaltennamen, die geplottet werden sollen
+    :param days: Liste von Datumsobjekten oder Strings im Format 'YYYY-MM-DD'
+    :param highlight_time: Zeitpunkt zum Hervorheben im Format 'HH:MM' (optional)
+    :param title: Titel des Diagramms (optional)
+    :param ylabel: Beschriftung der y-Achse (optional)
+    :param legend_labels: Benutzerdefinierte Labels für die Legende (optional)
+    """
+    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    fig, ax = plt.subplots(figsize=(15, 8))  # Erhöhte Höhe für Legende unten
+
+    for day in days:
+        # Konvertiere String zu Datum, falls nötig
+        if isinstance(day, str):
+            day = pd.to_datetime(day).date()
+        
+        # Filtere Daten für den ausgewählten Tag
+        day_data = df[df.index.date == day]
+        
+        if day_data.empty:
+            print(f"Warnung: Keine Daten für {day} gefunden.")
+            continue
+        
+        # Konvertiere Zeitindex zu Stunden seit Mitternacht
+        hours = [(t - t.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() / 3600 for t in day_data.index]
+        
+        # Plotte die Daten für diesen Tag und jede Spalte
+        lines = []
+        for column in columns:
+            line, = ax.plot(hours, day_data[column].values, label=column)
+            lines.append(line)
+
+        # Hervorheben des spezifischen Zeitpunkts, falls angegeben
+        if highlight_time:
+            highlight_hour, highlight_minute = map(int, highlight_time.split(':'))
+            highlight_time_point = highlight_hour + highlight_minute / 60
+            
+            # Finde den nächstgelegenen Zeitpunkt
+            nearest_time = min(day_data.index, key=lambda x: abs(x.hour + x.minute/60 - highlight_time_point))
+            
+            for column in columns:
+                value_at_highlight = day_data.loc[nearest_time, column]
+                ax.scatter(highlight_time_point, value_at_highlight, color='red', s=50, zorder=5)
+                ax.annotate(f'{int(value_at_highlight)}', (highlight_time_point, value_at_highlight), 
+                             xytext=(5, 5), textcoords='offset points', color='red')
+
+    ax.set_xlabel('Uhrzeit in h', fontsize=14)
+    ax.set_ylabel(ylabel if ylabel else ', '.join(columns), fontsize=14)
+    ax.set_title(title if title else f'Ausgewählte Spalten für ausgewählte Tage', fontsize=16)
+    ax.grid(True, linestyle='--', alpha=0.7)
+    
+    # Formatiere x-Achse für bessere Lesbarkeit
+    ax.set_xticks(range(0, 25, 1))  # Zeige Stunden von 0 bis 24 in 1-Stunden-Intervallen
+    ax.set_xlim(0, 24)
+    
+    # Hervorgehobenen Zeitpunkt auf x-Achse anzeigen
+    if highlight_time:
+        ax.axvline(x=highlight_time_point, color='red', linestyle='--', alpha=0.5)
+        # Füge den Zeitpunkt zur x-Achsen-Beschriftung hinzu
+        current_xticks = list(ax.get_xticks())
+        current_xlabels = [str(int(x)) for x in current_xticks]
+        current_xticks.append(highlight_time_point)
+        current_xlabels.append(highlight_time)
+        ax.set_xticks(current_xticks)
+        ax.set_xticklabels(current_xlabels, rotation=45, ha='right')
+
+    # Legende unter dem Diagramm anzeigen
+    if legend_labels:
+       ax.legend(lines, legend_labels, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3, fontsize=14)
+    else:
+       ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3, fontsize=14)
+    
+    plt.tight_layout()
+    return fig, ax
+#%%
+# Beispielaufruf
+selected_days = ['2022-07-03']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
+
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_2, selected_columns, selected_days, 
+                   highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title='Netzlast und modellierter Verbauch für den 03.07.2022', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
+
+plt.savefig(r'graphics\test.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
+
+# selected_days = ['2037-07-12']
+# selected_columns = ['Last [MW]', 'WR-basiert', 'rotierend']
+# custom_labels = ['Last', 'umrichterbasierte Erzeugung', 'Erzeugung durch rotierende Maschinen']
+# plot_selected_days(df_37, selected_columns, selected_days, 
+#                    highlight_time='12:45',  # Hervorheben des Werts um 08:45 Uhr
+#                    title='modellierte Last, umrichterbasierte und rotatorische Erzeugung für den 12.07.2037', 
+#                    ylabel='Leistung in MW',
+#                    legend_labels=custom_labels)
+
+# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Tag_37.png', dpi=300, bbox_inches='tight')
+
+# selected_days = ['2045-07-12']
+# selected_columns = ['Last [MW]', 'WR-basiert', 'rotierend']
+# custom_labels = ['Last', 'umrichterbasierte Erzeugung', 'Erzeugung durch rotierende Maschinen']
+# plot_selected_days(df_45, selected_columns, selected_days, 
+#                    highlight_time='12:45',  # Hervorheben des Werts um 08:45 Uhr
+#                    title='modellierte Last, umrichterbasierte und rotatorische Erzeugung für den 12.07.2045', 
+#                    ylabel='Leistung in MW',
+#                    legend_labels=custom_labels)
+
+# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Tag_45.png', dpi=300, bbox_inches='tight')
