@@ -18,6 +18,8 @@ df_AGEB = pd.read_excel(r'data\Endenergiebedarf_AGEB\EBD22e.xlsx')
 df_Lastprofil_H25 = pd.read_excel(r'data\Kopie_von_Repräsentative_Profile_BDEW_H25_G25_L25_P25_S25_Veröffentlichung.xlsx', sheet_name="H25")
 df_Lastprofil_G25 = pd.read_excel(r'data\Kopie_von_Repräsentative_Profile_BDEW_H25_G25_L25_P25_S25_Veröffentlichung.xlsx', sheet_name="G25")
 
+#lädt die aggregierten 
+
 
 #%% Zeitreihe aufbereiten
 #Datum als Index setzen und in Datetime umwandeln sowie erste Zeile löschen
@@ -103,7 +105,7 @@ def get_values_from_dataframe(df, queries):
             results.append({'Row': row_name, 'Column': column_name, 'Value': 'Fehler: Nicht gefunden'})
     return pd.DataFrame(results)
 
-# Summe der Endenergieverbräuche
+# In die Liste queries sind die gewünschten Sektoren einzutragen. 'Unnamed: 34' ist der Index der Spalte, die die Endenergiebedarfe enthält
 queries = [
     ('ENDENERGIEVERBRAUCH', 'Unnamed: 34'),
     ('Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe', 'Unnamed: 34'),
@@ -120,7 +122,7 @@ df_EEB_Sektoren=pd.DataFrame()
 df_EEB_Sektoren['Summe'] = df_answer.set_index('Row')['Value']  # Setzt 'Row' als Index und übernimmt die Werte aus 'Value'
 
 
-# Stromverbrauch
+# In die Liste queries sind die gewünschten Sektoren einzutragen. 'Unnamed: 29' ist der Index der Spalte, die die Strombedarfe enthält
 queries = [
     ('ENDENERGIEVERBRAUCH', 'Unnamed: 29'),
     ('Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe', 'Unnamed: 29'),
@@ -136,20 +138,11 @@ df_EEB_Sektoren['Strom'] = df_answer.set_index('Row')['Value']  # Ergänzt die W
 
 #Anteile der einzelnen Sektoren am Gesamtverbrauch berechnen
 
-df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Anteil_Summe']=df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
-df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Anteil_Strom']=df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
-
-df_EEB_Sektoren.loc['Verkehr insgesamt','Anteil_Summe']=df_EEB_Sektoren.loc['Verkehr insgesamt','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
-df_EEB_Sektoren.loc['Verkehr insgesamt','Anteil_Strom']=df_EEB_Sektoren.loc['Verkehr insgesamt','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
-
-df_EEB_Sektoren.loc['Haushalte','Anteil_Summe']=df_EEB_Sektoren.loc['Haushalte','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
-df_EEB_Sektoren.loc['Haushalte','Anteil_Strom']=df_EEB_Sektoren.loc['Haushalte','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
-
-df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Anteil_Summe']=df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Summe']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Summe']
-df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Anteil_Strom']=df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
+df_EEB_Sektoren.loc[:,'Anteil_Summe'] = df_EEB_Sektoren.loc[:,'Summe'] / df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH', 'Summe']
+df_EEB_Sektoren.loc[:,'Anteil_Strom']=df_EEB_Sektoren.loc[:,'Strom']/df_EEB_Sektoren.loc['ENDENERGIEVERBRAUCH','Strom']
 
 
-#Hier wird die Gesamtenergie für 2022 berechnet
+#Hier wird die Gesamtenergie für das Jahr berechnet
 
 df_Last_22 = pd.DataFrame()
 df_Last_22 ['Last [MW]']=df_Nettostromerzeugung_22['Last']
@@ -260,21 +253,21 @@ def saisonschwankungen_modellieren(t):
     Gibt relativen Verbrauchsfaktor zurück (1.0 = Durchschnitt)
     """
     # Jahreszeitliche Grundschwingung (Hauptmaximum im Winter)
-    saison = 0.25 * np.cos(2*np.pi*(t - 15)/365)
+    saison = 0.01 * np.cos(2*np.pi*(t - 15)/365)
     
     # Weihnachtseffekt (Spitze im Dezember)
     weihnachten = 0.1 * np.exp(-((t - 355)/10)**2)
     
     # Sommerdip mit leichtem Anstieg durch Kühlung
-    sommer = -0.15 * np.exp(-((t - 200)/60)**2)
+    sommer = -0.015 * np.exp(-((t - 200)/60)**2)
     
     # Zufällige tägliche Schwankungen (Rauschen)
-    rauschen = 0.05 * np.random.normal()
+    # rauschen = 0.05 * np.random.normal()
     
-    return 1.0 + saison + weihnachten + sommer + rauschen
+    return 1.0 + saison #+ weihnachten + sommer + rauschen
 
 
-def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte, ESB_Verkehr):
+def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte, ESB_Verkehr, faktor_G25, faktor_H25):
     """
     #Als Übergabe muss ein Zeitreihen-Dataframe mit den Lastprofilzeitreihen übergeben werden (stammt von df_Last_22_mit_Profilen)
     #Es müssen die Jahresstrommengen für die einzelnen Sektoren übergeben werden (stammt von df_EEB_Sektoren)
@@ -288,13 +281,13 @@ def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte
     #Die Lastprofile sind auf 1Mio. kWH normiert, weswegen durch 1000 geteilt werden muss um auf 1MWh zu kommen. Dann wird mit dem Endstrombedarf des Sektors multipliziert
     # Die Viertelstundenwerte sind in kWh angegeben, daher wird durch 10e3 geteilt, um auf MWh zu kommen
 
-    df_last['Industrie'] = ((df_last['G25']/1e3) * ESB_Industrie)/1e3
-    df_last['GHD'] = ((df_last['G25']/1e3) * ESB_GHD)/1e3
-    df_last['Haushalte_stat'] = ((df_last['H25']/1e3) * ESB_Haushalte)/1e3
-    df_last['Haushalte_dyn'] = ((df_last['H25'] / 1e3) * ESB_Haushalte) * (-3.92e-10 * t**4 + 3.2e-7 * t**3 - 7.02e-5 * t + 2.1e-3*t + 1.24)/1e3
-    df_last['Verkehr'] = (ESB_Verkehr / len(df_last))
+    df_last['Industrie'] =          ((((df_last['G25']/1e3) * ESB_Industrie)/1e3)    * faktor_G25 + (ESB_Industrie/len(df_last)) * (1-faktor_G25)) *saisonschwankungen_modellieren(t)
+    df_last['GHD'] =                ((((df_last['G25']/1e3) * ESB_GHD)/1e3)          * faktor_G25 + (ESB_GHD/len(df_last))       * (1-faktor_G25)) *saisonschwankungen_modellieren(t)
+    df_last['Haushalte_stat'] =     ((((df_last['H25']/1e3) * ESB_Haushalte)/1e3)    * faktor_H25 + (ESB_Haushalte/len(df_last)) * (1-faktor_H25)) *saisonschwankungen_modellieren(t)
+    # df_last['Haushalte_dyn'] =    ((df_last['H25'] / 1e3) * ESB_Haushalte) * (-3.92e-10 * t**4 + 3.2e-7 * t**3 - 7.02e-5 * t + 2.1e-3*t + 1.24)/1e3 #FEHLER!!!Exponentiell ansteigend!
+    df_last['Verkehr'] =            (ESB_Verkehr / len(df_last))                                                                                    #*saisonschwankungen_modellieren(t)
 
-    df_last['Summe_Sektoren_modelliert'] = df_last['Industrie'] + df_last['GHD'] + df_last['Haushalte_stat']+df_last['Verkehr']*saisonschwankungen_modellieren(t)
+    df_last['Summe_Sektoren_modelliert'] = (df_last['Industrie'] + df_last['GHD'] + df_last['Haushalte_stat']+df_last['Verkehr'])#*saisonschwankungen_modellieren(t)
 
 
 
@@ -306,29 +299,70 @@ ESB_GHD             = df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','S
 ESB_Haushalte       = df_EEB_Sektoren.loc['Haushalte','Stromenergiemenge_anteilig [MWh]']
 ESB_Verkehr         = df_EEB_Sektoren.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]']
 
+#Hier kann man die Zeitreihen mit Faktoren beeinflussen
 
-df_Sektorenzeitreihen_mod_1 = modelliere_Sektorenzeitreihen(df_Last_22_mit_Profilen, df_EEB_Sektoren.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'], df_EEB_Sektoren.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'])
+faktor_G25 = 0.7    # Mit welchem Anteil soll das G25-Profil in die Zeitreihe einfließen?
+faktor_H25 = 0.65    # Mit welchem Anteil soll das H25-Profil in die Zeitreihe einfließen?
+
+
+
+df_Sektorenzeitreihen_mod_1 = modelliere_Sektorenzeitreihen(df_Last_22_mit_Profilen, ESB_Industrie, ESB_GHD, ESB_Haushalte, ESB_Verkehr, faktor_G25, faktor_H25)
 
 #Speichern der Zwischenergebnisse in eine Excel-Datei
-df_Sektorenzeitreihen_mod_1.to_excel(r'C:\Users\HansisRasanterRaser\Desktop\UNI\000_DA\git\knEBiD\data\Ausgabe\Netzlast und Sektoren nach Profilen_22.xlsx')
+df_Sektorenzeitreihen_mod_1.to_excel(r'data\Ausgabe\Netzlast und Sektoren nach Profilen_22.xlsx')
 
 
 
 
-t= df_Sektorenzeitreihen_mod_1.index.dayofyear
+
 
 
 df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_1.copy()
+
+t= df_Sektorenzeitreihen_mod_2.index.dayofyear
+
 df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_2.iloc[:, :1]
 df_Sektorenzeitreihen_mod_2['Energie [MWh]'] = df_Sektorenzeitreihen_mod_1['Energie [MWh]']
-df_Sektorenzeitreihen_mod_2['Industrie'] = df_Sektorenzeitreihen_mod_1['Industrie'] * 0.8 + (ESB_Industrie/len(df_Sektorenzeitreihen_mod_2))*0.2
-df_Sektorenzeitreihen_mod_2['GHD'] = df_Sektorenzeitreihen_mod_1['GHD'] * 0.8 + (ESB_GHD/len(df_Sektorenzeitreihen_mod_2))*0.2
-df_Sektorenzeitreihen_mod_2['Haushalte_stat'] = df_Sektorenzeitreihen_mod_1['Haushalte_stat'] * 0.8 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.2
-df_Sektorenzeitreihen_mod_2['Haushalte_dyn'] = df_Sektorenzeitreihen_mod_1['Haushalte_dyn'] * 0.8 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.2
+df_Sektorenzeitreihen_mod_2['Industrie'] = df_Sektorenzeitreihen_mod_1['Industrie'] * 0.7 + (ESB_Industrie/len(df_Sektorenzeitreihen_mod_2))*0.3
+df_Sektorenzeitreihen_mod_2['GHD'] = df_Sektorenzeitreihen_mod_1['GHD'] * 0.7 + (ESB_GHD/len(df_Sektorenzeitreihen_mod_2))*0.3
+df_Sektorenzeitreihen_mod_2['Haushalte_stat'] = df_Sektorenzeitreihen_mod_1['Haushalte_stat'] * 0.6 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.4
+#df_Sektorenzeitreihen_mod_2['Haushalte_dyn'] = df_Sektorenzeitreihen_mod_1['Haushalte_dyn'] * 0.7 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.3
 df_Sektorenzeitreihen_mod_2['Verkehr'] = df_Sektorenzeitreihen_mod_1['Verkehr'] * 0.8 + (ESB_Verkehr/len(df_Sektorenzeitreihen_mod_2))*0.2
-df_Sektorenzeitreihen_mod_2['Summe_Sektoren_modelliert'] = df_Sektorenzeitreihen_mod_2['Industrie'] + df_Sektorenzeitreihen_mod_2['GHD'] + df_Sektorenzeitreihen_mod_2['Haushalte_stat']+df_Sektorenzeitreihen_mod_2['Verkehr']*saisonschwankungen_modellieren(t)
+df_Sektorenzeitreihen_mod_2['Summe_Sektoren_modelliert'] = (df_Sektorenzeitreihen_mod_2['Industrie'] + df_Sektorenzeitreihen_mod_2['GHD'] + df_Sektorenzeitreihen_mod_2['Haushalte_stat']+df_Sektorenzeitreihen_mod_2['Verkehr'])#*(0.8*saisonschwankungen_modellieren(t))
 
 
+def zeitreihen_beeinflussen(df, faktor_G25, faktor_H25, faktor_gleich):
+    """
+    Beeinflusst die Zeitreihen basierend auf dem Tag des Jahres.
+    :param df: DataFrame mit den Zeitreihen.
+    :param t: Tag des Jahres.
+    :return: DataFrame mit beeinflussten Zeitreihen.
+    """
+    # Hier können Sie Ihre Logik zur Beeinflussung der Zeitreihen implementieren
+    # Zum Beispiel:
+    df['Industrie'] = df  # Beispiel: Erhöhe Industrie um 10%
+    return df
+
+
+
+
+
+
+
+
+
+#Prognosewerte für die Sektoren
+
+
+#Endstrombedarfsanteile für die einzelnen Sektoren
+#Hier die Werte für die Variablen definieren, die in der Funktion modelliere_Sektorenzeitreihen verwendet werden
+# ESB_Industrie       = 351.333e6
+# ESB_GHD             = 273.667e6/2
+# ESB_Haushalte       = 273.667e6/2
+# ESB_Verkehr         = 142.5e6
+
+
+#df_Sektorenzeitreihen_mod_3 = modelliere_Sektorenzeitreihen(df_Last_22_mit_Profilen, 351.333e6, 273.667e6/2, 273.667e6/2, 142.5e6, faktor_G25, faktor_H25)
 
 
 
@@ -419,23 +453,27 @@ def plot_daily_aggregation(df, columns, highlight_date=None, title=None, ylabel=
 #%% Beispielaufruf
 selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
 custom_labels = ['Netz', 'Modellierung']
-fig, ax = plot_daily_aggregation(df_Sektorenzeitreihen_mod_2, selected_columns, 
-                       highlight_date='2022-07-03',
+fig, ax = plot_daily_aggregation(df_Sektorenzeitreihen_mod_1, selected_columns, 
+                    #    highlight_date='2022-07-03',
                        title='Netzlast und modellierter Verbrauch für das Jahr 2022', 
                        ylabel='Energie in MWh',
                        legend_labels=custom_labels)
 
-# Speichern der Figur
-plt.savefig(r'graphics\test_01.png', dpi=300, bbox_inches='tight')
+#Speichern der Figur
+plt.savefig(f'graphics\df_Sektorenzeitreihen_mod_1_jahr.png', dpi=300, bbox_inches='tight')
 plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
-# plot_daily_aggregation(df_37, selected_columns, 
-#                        highlight_date='2037-07-12',
-#                        title='modellierte Last und umrichterbasierte Erzeugung für das Jahr 2037', 
-#                        ylabel='Leistung in MW',
+# selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+# custom_labels = ['Netz', 'Modellierung']
+# fig, ax = plot_daily_aggregation(df_Sektorenzeitreihen_mod_3, selected_columns, 
+#                     #    highlight_date='2022-07-03',
+#                        title='Netzlast und modellierter Verbrauch für das Jahr 2022', 
+#                        ylabel='Energie in MWh',
 #                        legend_labels=custom_labels)
 
-# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Jahr_37.png', dpi=300, bbox_inches='tight')
+# # Speichern der Figur
+# plt.savefig(f'graphics\df_Sektorenzeitreihen_mod_3_jahr.png', dpi=300, bbox_inches='tight')
+# plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
 # plot_daily_aggregation(df_45, selected_columns, 
 #                        highlight_date='2045-07-12',
@@ -525,37 +563,80 @@ def plot_selected_days(df, columns, days, highlight_time=None, title=None, ylabe
     return fig, ax
 #%%
 # Beispielaufruf
-selected_days = ['2022-07-03']
+selected_days = ['2022-02-03']
 selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
 custom_labels = ['Netzlast', 'modellierter Verbrauch']
 
-fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_2, selected_columns, selected_days, 
-                   highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
-                   title='Netzlast und modellierter Verbauch für den 03.07.2022', 
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_1, selected_columns, selected_days, 
+                   #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title= f'Netzlast und modellierter Verbauch für den {selected_days}', 
                    ylabel='Energie in MWh',
                    legend_labels=custom_labels)
 
-plt.savefig(r'graphics\test.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_1_{selected_days}.png', dpi=300, bbox_inches='tight')
 plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
-# selected_days = ['2037-07-12']
-# selected_columns = ['Last [MW]', 'WR-basiert', 'rotierend']
-# custom_labels = ['Last', 'umrichterbasierte Erzeugung', 'Erzeugung durch rotierende Maschinen']
-# plot_selected_days(df_37, selected_columns, selected_days, 
-#                    highlight_time='12:45',  # Hervorheben des Werts um 08:45 Uhr
-#                    title='modellierte Last, umrichterbasierte und rotatorische Erzeugung für den 12.07.2037', 
-#                    ylabel='Leistung in MW',
-#                    legend_labels=custom_labels)
+selected_days = ['2022-09-14']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
 
-# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Tag_37.png', dpi=300, bbox_inches='tight')
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_1, selected_columns, selected_days, 
+                   #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title= f'Netzlast und modellierter Verbauch für den {selected_days}', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
 
-# selected_days = ['2045-07-12']
-# selected_columns = ['Last [MW]', 'WR-basiert', 'rotierend']
-# custom_labels = ['Last', 'umrichterbasierte Erzeugung', 'Erzeugung durch rotierende Maschinen']
-# plot_selected_days(df_45, selected_columns, selected_days, 
-#                    highlight_time='12:45',  # Hervorheben des Werts um 08:45 Uhr
-#                    title='modellierte Last, umrichterbasierte und rotatorische Erzeugung für den 12.07.2045', 
-#                    ylabel='Leistung in MW',
-#                    legend_labels=custom_labels)
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_1_{selected_days}.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
-# plt.savefig(r'C:\Users\HansisRasanterRaser\Nextcloud2\SA\Ereignisse\Tag_45.png', dpi=300, bbox_inches='tight')
+selected_days = ['2022-07-25']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
+
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_1, selected_columns, selected_days, 
+                    #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title=f'Netzlast und modellierter Verbauch für den {selected_days}', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
+
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_1_{selected_days}.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
+
+selected_days = ['2022-02-03']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
+
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_3, selected_columns, selected_days, 
+                   #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title= f'Netzlast und modellierter Verbauch für den {selected_days}', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
+
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_3_{selected_days}.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
+
+selected_days = ['2022-09-14']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
+
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_3, selected_columns, selected_days, 
+                   #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title= f'Netzlast und modellierter Verbauch für den {selected_days}', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
+
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_3_{selected_days}.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
+
+selected_days = ['2022-07-25']
+selected_columns = ['Energie [MWh]', 'Summe_Sektoren_modelliert']
+custom_labels = ['Netzlast', 'modellierter Verbrauch']
+
+fig, ax = plot_selected_days(df_Sektorenzeitreihen_mod_3, selected_columns, selected_days, 
+                    #highlight_time='08:45',  # Hervorheben des Werts um 08:45 Uhr
+                   title=f'Netzlast und modellierter Verbauch für den {selected_days}', 
+                   ylabel='Energie in MWh',
+                   legend_labels=custom_labels)
+
+plt.savefig(f'graphics/df_Sektorenzeitreihen_mod_3_{selected_days}.png', dpi=300, bbox_inches='tight')
+plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
