@@ -280,7 +280,7 @@ def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte
     t= df_last.index.dayofyear
     #Die Lastprofile sind auf 1Mio. kWH normiert, weswegen durch 1000 geteilt werden muss um auf 1MWh zu kommen. Dann wird mit dem Endstrombedarf des Sektors multipliziert
     # Die Viertelstundenwerte sind in kWh angegeben, daher wird durch 10e3 geteilt, um auf MWh zu kommen
-
+    #Energiemenge des Sektors=      ((((Lastprofil/1000)*Endstrombedarf_Sektor)/1000)*Wichtung_des_Profils + (ESB/len(df_last))*(1-faktor))*saisonschwankungen_modellieren(t)
     df_last['Industrie'] =          ((((df_last['G25']/1e3) * ESB_Industrie)/1e3)    * faktor_G25 + (ESB_Industrie/len(df_last)) * (1-faktor_G25)) *saisonschwankungen_modellieren(t)
     df_last['GHD'] =                ((((df_last['G25']/1e3) * ESB_GHD)/1e3)          * faktor_G25 + (ESB_GHD/len(df_last))       * (1-faktor_G25)) *saisonschwankungen_modellieren(t)
     df_last['Haushalte_stat'] =     ((((df_last['H25']/1e3) * ESB_Haushalte)/1e3)    * faktor_H25 + (ESB_Haushalte/len(df_last)) * (1-faktor_H25)) *saisonschwankungen_modellieren(t)
@@ -289,6 +289,12 @@ def modelliere_Sektorenzeitreihen(df_last, ESB_Industrie, ESB_GHD, ESB_Haushalte
 
     df_last['Summe_Sektoren_modelliert'] = (df_last['Industrie'] + df_last['GHD'] + df_last['Haushalte_stat']+df_last['Verkehr'])#*saisonschwankungen_modellieren(t)
 
+    ##Hier wird der Anteil der einzelnen Sektoren, dynamisiert durch die Standardlastprofile, an der Gesamtlast für jede Viertelstunde berechnet
+    df_last['Anteil_Industrie'] = df_last['Industrie'] / df_last['Summe_Sektoren_modelliert']
+    df_last['Anteil_GHD'] = df_last['GHD'] / df_last['Summe_Sektoren_modelliert']
+    df_last['Anteil_Haushalte_stat'] = df_last['Haushalte_stat'] / df_last['Summe_Sektoren_modelliert']
+    # df_last['Anteil_Haushalte_dyn'] = df_last['Haushalte_dyn'] / df_last['Summe_Sektoren_modelliert']
+    df_last['Anteil_Verkehr'] = df_last['Verkehr'] / df_last['Summe_Sektoren_modelliert']
 
 
     return df_last
@@ -313,53 +319,16 @@ df_Sektorenzeitreihen_mod_1.to_excel(r'data\Ausgabe\Netzlast und Sektoren nach P
 
 
 
-
-
-
-
-df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_1.copy()
-
-t= df_Sektorenzeitreihen_mod_2.index.dayofyear
-
-df_Sektorenzeitreihen_mod_2 = df_Sektorenzeitreihen_mod_2.iloc[:, :1]
-df_Sektorenzeitreihen_mod_2['Energie [MWh]'] = df_Sektorenzeitreihen_mod_1['Energie [MWh]']
-df_Sektorenzeitreihen_mod_2['Industrie'] = df_Sektorenzeitreihen_mod_1['Industrie'] * 0.7 + (ESB_Industrie/len(df_Sektorenzeitreihen_mod_2))*0.3
-df_Sektorenzeitreihen_mod_2['GHD'] = df_Sektorenzeitreihen_mod_1['GHD'] * 0.7 + (ESB_GHD/len(df_Sektorenzeitreihen_mod_2))*0.3
-df_Sektorenzeitreihen_mod_2['Haushalte_stat'] = df_Sektorenzeitreihen_mod_1['Haushalte_stat'] * 0.6 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.4
-#df_Sektorenzeitreihen_mod_2['Haushalte_dyn'] = df_Sektorenzeitreihen_mod_1['Haushalte_dyn'] * 0.7 + (ESB_Haushalte/len(df_Sektorenzeitreihen_mod_2))*0.3
-df_Sektorenzeitreihen_mod_2['Verkehr'] = df_Sektorenzeitreihen_mod_1['Verkehr'] * 0.8 + (ESB_Verkehr/len(df_Sektorenzeitreihen_mod_2))*0.2
-df_Sektorenzeitreihen_mod_2['Summe_Sektoren_modelliert'] = (df_Sektorenzeitreihen_mod_2['Industrie'] + df_Sektorenzeitreihen_mod_2['GHD'] + df_Sektorenzeitreihen_mod_2['Haushalte_stat']+df_Sektorenzeitreihen_mod_2['Verkehr'])#*(0.8*saisonschwankungen_modellieren(t))
-
-
-def zeitreihen_beeinflussen(df, faktor_G25, faktor_H25, faktor_gleich):
-    """
-    Beeinflusst die Zeitreihen basierend auf dem Tag des Jahres.
-    :param df: DataFrame mit den Zeitreihen.
-    :param t: Tag des Jahres.
-    :return: DataFrame mit beeinflussten Zeitreihen.
-    """
-    # Hier können Sie Ihre Logik zur Beeinflussung der Zeitreihen implementieren
-    # Zum Beispiel:
-    df['Industrie'] = df  # Beispiel: Erhöhe Industrie um 10%
-    return df
-
-
-
-
-
-
-
-
-
 #Prognosewerte für die Sektoren
 
 
 #Endstrombedarfsanteile für die einzelnen Sektoren
 #Hier die Werte für die Variablen definieren, die in der Funktion modelliere_Sektorenzeitreihen verwendet werden
-# ESB_Industrie       = 351.333e6
+# ESB_Industrie       = 351.333e6                                                                   #MWh
 # ESB_GHD             = 273.667e6/2
 # ESB_Haushalte       = 273.667e6/2
 # ESB_Verkehr         = 142.5e6
+# ESB_gesamt          = 0.00000001
 
 
 #df_Sektorenzeitreihen_mod_3 = modelliere_Sektorenzeitreihen(df_Last_22_mit_Profilen, 351.333e6, 273.667e6/2, 273.667e6/2, 142.5e6, faktor_G25, faktor_H25)
