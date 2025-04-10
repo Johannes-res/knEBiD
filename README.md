@@ -7,21 +7,32 @@ Dazu wird zunächst der Verbrauch bzw. Bedarf anhand vorhandener Prognosen in Ze
 Danach kann dieser Bedarf mittels Variation verschiedener regenerativen Umwandlungstechnologien gedeckt werden.
 
 
-# energy_charts_Zeitreihen.py
+# Datenstruktur
+Perspektivisch soll möglichst Benutzer*innenfreundlich über main.py alles gesteuert werden können.
+Für mehr Übersichtlichkeit wurden einzelne .py-Dateien erstellt, welche abtrennbare Funktionen ausführen.
+So gibt es momentan:
 
-Hier werden zunächst die Daten von energy-charts.info geladen sowie die Energiebilanz für Deutschland von der AGEB. (zusätzlich müssen noch die Lastprofile des BDEW eingelesen werden)
+daten_einlesen.py                 Einlesen von Tabellen etc.
+graphisch_darstellen.py           Plotten von Zeitreihen zur graphischen Überprüfung
+last_aufteilen.py                 Aufteilen der allgemeinen Last in Verbrauchssektoren
+last_prognose.py                  Erweiterung des last_aufteilen.py mit der Möglichkeit neue Verbraucherprofile und Energiebedarfe zu ergänzen
+lastprofile_modellieren.py        eigenhändiges Erstellen von Lastprofilen um neue Verbraucher dynamisch mit in die Zeitreihen einfließen zu lassen
+
+
+
+# daten_einlesen.py
+Hier werden zunächst die Daten von energy-charts.info geladen sowie die Energiebilanz für Deutschland von der AGEB. Zudem werden die neuen Standardlastprofile des BDEW geladen.
 Danach werden die Dataframes aufbereitet und die relevanten Daten extrahiert.
-Um den Lastverlauf einzelnen Sektoren zuordnen zu können, wird der Energiebedarf jedes Sektors durch den Gesamtendenergiebedarf geteilt. So erhält man die Anteile.
-Dies erfolgt zunächst primär für den Stromverbrauch.
-Es wird die Aufteilung nach Verbrauchergruppen des BDEW genutzt.
-(https://www.bdew.de/service/daten-und-grafiken/strom-verbrauch-nach-verbrauchergruppen/)
 
-Aus dem Lastverlauf des Jahres wird die Summe gebildet und nach Sektoren aufgeteilt.
-//Hier muss noch der EEB mitgenommen werden als Kontrollzahl
+# graphisch_darstellen.py
+Hier können beliebige Jahreszeitreihen importiert werden und der Jahresgang, ein einzelner Tag oder eine Woche dargestellt werden.
 
-Als nächstes wird initial mit den Standardlastprofilen versucht den zeitaufgelösten Verbrauch zu modellieren.
-Dabei gilt als Vergleich der tatsächliche Lastgang mit der Summe der modellierten Lasten.
+# last_aufteilen.py
+Hier wird die Lastzeitreihe anhand der Endstromverbräuche der Sektoren sowie den Lastprofilen aufgeteilt.
 
+# last_prognose.py
+Macht das selbe wie last_aufteilen.py. Zusätzlich können neue Verbrauchergruppen wie zb. die Emobilität mit einem Lastprofil eingelesen und der anteil an der Last pro 15min-Wert ermittelt werden
 
-
-Danach soll der Lastgang in Sektoren aufgeteilt werden. Dazu müssen noch sektorspezifische Lastprofile hinterlegt werden, welche die Summe der Last anteilig für den Sektor auf die 15min-Werte aufteilt.
+# lastprofile_modellieren.py
+Schafft die Möglichkeit eigene Lastprofile in Anlehnung der Standardlastprofile des BDEW zu erstellen.
+Momentan ist ein EMob_Lastprofil sowie ein Wärmpepumpen Lastprofil initialisiert.

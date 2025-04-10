@@ -162,5 +162,3 @@ queries_AGEB = [
 df_AGEB_22 = update_dataframe(df_AGEB_22,df_AGEB_22_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 df_AGEB_23 = update_dataframe(df_AGEB_23,df_AGEB_23_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 
-print('wegr')
-# df_EEB_Sektoren['Strom'] = df_answer.set_index('Row')['Value']  # Ergänzt die Werte aus 'Value' passend zum Index
