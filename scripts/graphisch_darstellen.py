@@ -5,10 +5,10 @@ import matplotlib.dates as mdates
 
 
 #Hier darzustellenden DataFrame importieren
-from verbrauch_modellieren import df_übersicht_22 as df
+from last_prognose import df_übersicht_45 as df
 
 #Hier noch Namen eintragen um Grafiken zu benennen
-df_name = 'df_übersicht_22'  # Name des DataFrames für die Dateinamen der Grafiken
+df_name = 'df_übersicht_45'  # Name des DataFrames für die Dateinamen der Grafiken
 
 
 
@@ -25,7 +25,10 @@ def plot_daily_aggregation(df, columns, highlight_date=None, title=None, ylabel=
     :param ylabel: Beschriftung der y-Achse (optional)
     :param legend_labels: Benutzerdefinierte Labels für die Legende (optional)
     """
-    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    try:
+        locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    except locale.Error:
+        print("Warnung: Das angegebene Locale 'de_DE.UTF-8' ist nicht verfügbar. Es wird das Standard-Locale verwendet.")
     fig, ax = plt.subplots(figsize=(15, 8))
 
     lines = []
@@ -34,7 +37,9 @@ def plot_daily_aggregation(df, columns, highlight_date=None, title=None, ylabel=
         df_daily = df[column].resample('D').agg(['mean', 'min', 'max'])
 
         # Diagramm erstellen
-        ax.fill_between(df_daily.index, df_daily['min'], df_daily['max'], alpha=0.3)
+        # Ensure data is numeric and drop NaN values
+        df_daily_clean = df_daily.dropna().apply(pd.to_numeric, errors='coerce')
+        ax.fill_between(df_daily_clean.index, df_daily_clean['min'], df_daily_clean['max'], alpha=0.3)
         line, = ax.plot(df_daily.index, df_daily['mean'], label=column)
         lines.append(line)
 
@@ -110,19 +115,19 @@ def plot_selected_days(df, columns, days, highlight_time=None, title=None, ylabe
             line, = ax.plot(hours, day_data[column].values, label=column)
             lines.append(line)
 
-        # Hervorheben des spezifischen Zeitpunkts, falls angegeben
-        if highlight_time:
-            highlight_hour, highlight_minute = map(int, highlight_time.split(':'))
-            highlight_time_point = highlight_hour + highlight_minute / 60
+        # # Hervorheben des spezifischen Zeitpunkts, falls angegeben
+        # if highlight_time:
+        #     highlight_hour, highlight_minute = map(int, highlight_time.split(':'))
+        #     highlight_time_point = highlight_hour + highlight_minute / 60
             
-            # Finde den nächstgelegenen Zeitpunkt
-            nearest_time = min(day_data.index, key=lambda x: abs(x.hour + x.minute/60 - highlight_time_point))
+        #     # Finde den nächstgelegenen Zeitpunkt
+        #     nearest_time = min(day_data.index, key=lambda x: abs(x.hour + x.minute/60 - highlight_time_point))
             
-            for column in columns:
-                value_at_highlight = day_data.loc[nearest_time, column]
-                ax.scatter(highlight_time_point, value_at_highlight, color='red', s=50, zorder=5)
-                ax.annotate(f'{int(value_at_highlight)}', (highlight_time_point, value_at_highlight), 
-                             xytext=(5, 5), textcoords='offset points', color='red')
+        #     for column in columns:
+        #         value_at_highlight = day_data.loc[nearest_time, column]
+        #         ax.scatter(highlight_time_point, value_at_highlight, color='red', s=50, zorder=5)
+        #         ax.annotate(f'{int(value_at_highlight)}', (highlight_time_point, value_at_highlight), 
+        #                      xytext=(5, 5), textcoords='offset points', color='red')
 
     ax.set_xlabel('Uhrzeit in h', fontsize=14)
     ax.set_ylabel(ylabel if ylabel else ', '.join(columns), fontsize=14)
@@ -134,19 +139,19 @@ def plot_selected_days(df, columns, days, highlight_time=None, title=None, ylabe
     ax.set_xlim(0, 24)
     
     # Hervorgehobenen Zeitpunkt auf x-Achse anzeigen
-    if highlight_time:
-        ax.axvline(x=highlight_time_point, color='red', linestyle='--', alpha=0.5)
-        # Füge den Zeitpunkt zur x-Achsen-Beschriftung hinzu
-        current_xticks = list(ax.get_xticks())
-        current_xlabels = [str(int(x)) for x in current_xticks]
-        current_xticks.append(highlight_time_point)
-        current_xlabels.append(highlight_time)
-        ax.set_xticks(current_xticks)
-        ax.set_xticklabels(current_xlabels, rotation=45, ha='right')
+    # if highlight_time:
+    #     ax.axvline(x=highlight_time_point, color='red', linestyle='--', alpha=0.5)
+    #     # Füge den Zeitpunkt zur x-Achsen-Beschriftung hinzu
+    #     current_xticks = list(ax.get_xticks())
+    #     current_xlabels = [str(int(x)) for x in current_xticks]
+    #     current_xticks.append(highlight_time_point)
+    #     current_xlabels.append(highlight_time)
+    #     ax.set_xticks(current_xticks)
+    #     ax.set_xticklabels(current_xlabels, rotation=45, ha='right')
 
     # Legende unter dem Diagramm anzeigen
     if legend_labels:
-       ax.legend(lines, legend_labels, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3, fontsize=14)
+       ax.legend( legend_labels, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3, fontsize=14)
     else:
        ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3, fontsize=14)
     
@@ -185,7 +190,9 @@ def plot_weekly_aggregation(df, columns, week_start, title=None, ylabel=None, le
         df_hourly = week_data[column].resample('H').agg(['mean', 'min', 'max'])
 
         # Diagramm erstellen
-        ax.fill_between(df_hourly.index, df_hourly['min'], df_hourly['max'], alpha=0.3)
+        # Ensure data is numeric and drop NaN values
+        df_hourly_clean = df_hourly.dropna().apply(pd.to_numeric, errors='coerce')
+        ax.fill_between(df_hourly_clean.index, df_hourly_clean['min'], df_hourly_clean['max'], alpha=0.3)
         line, = ax.plot(df_hourly.index, df_hourly['mean'], label=column)
         lines.append(line)
 
@@ -211,8 +218,8 @@ def plot_weekly_aggregation(df, columns, week_start, title=None, ylabel=None, le
 #%% Grafik generieren
 
 # Grafik generieren für den Jahresgang
-selected_columns =       ['Energie [MWh]', 'Summe_Sektoren_modelliert']
-custom_labels =          ['Netz', 'Modellierung']
+selected_columns =       ['Energie [MWh]', 'Last_prognose [MWh]']
+custom_labels = selected_columns
 
 title =                 'Netzlast und modellierter Verbrauch für das Jahr 2022'
 ylabel =                'Energie in MWh'
@@ -238,8 +245,8 @@ plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
 # Beispielaufruf für die Darstellung eines spezifischen Tages
 selected_days =                         ['2022-02-03']
-selected_columns =                      ['Energie [MWh]', 'Summe_Sektoren_modelliert']
-custom_labels =                         ['Netzlast', 'modellierter Verbrauch']
+# selected_columns =                       ['EMobilität', 'Wärmepumpen']
+# custom_labels =                         ['Netzlast', 'modellierter Verbrauch']
 title=                                  f'Netzlast und modellierter Verbauch für den {selected_days}'
 ylabel=                                 'Energie in MWh'
 
@@ -254,9 +261,10 @@ plt.close(fig)  # Schließt die Figur, um Ressourcen freizugeben
 
 # Beispielaufruf für die Darstellung einer Woche
 week_start =                            '2022-07-01'  # Startdatum der Woche
+# selected_columns =                       ['EMobilität', 'Wärmepumpen']
+# custom_labels =                         ['Netzlast', 'Modellierung']
 title =                                 f'Netzlast und modellierter Verbrauch für die Woche ab {week_start}'
 ylabel =                                'Energie in MWh'
-custom_labels =                         ['Netzlast', 'Modellierung']
 
 fig, ax = plot_weekly_aggregation(df, selected_columns, week_start,
                                   title, 

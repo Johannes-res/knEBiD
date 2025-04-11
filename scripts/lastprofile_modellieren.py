@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#in Bearbeitung
+"""Dieses Skript dient zum Erstellen von Lastprofilen in Anlehnung der des BDEW.
+Hierfür gibt es zunächst die Funktion 'def generiere_stufenfunktion', die mittels anpassbarer Stufen einen Tagesgang modelliert. Dazu muss die Uhrzeit und der Wert zu dieser festgelegt werden. Die festgelegten Punkte werden linear miteinander verbunden.
+'def_auf_monate_erweitern' erweitert die Lastprofile auf monatliche Werte. Hierbei wird ein saisonaler Faktor berücksichtigt, der die Lastprofile an die Jahreszeiten anpasst. Es kann pro Monat ein Faktor festgelegt werden.
+Die Funktion 'def_saisonale_schwankungen_modellieren' erstellt die saisonalen Faktoren für die einzelnen Monate mit Hilfe einer Cosinusfunktion."""
 #%% wöchentliche Lastprofile in tägliche Lastprofile umwandeln
 def weekly_to_daily_load(weekly_load=None, visualize=True):
 
@@ -102,7 +105,7 @@ def plot_custom_load(df):
 # print(lastprofile_df.head())
 
 #%%Stufenfunktion für E-Mobilitätslastprofile
-def generate_emobility_load(profiles: dict = {'WT': ([5, 12, 19], [0.2, 0.6, 1.0]), 'SA': ([6, 14, 20], [0.1, 0.5, 0.8]), 'FT': ([0, 12, 18], [0.1, 0.4, 0.7])}):
+def generiere_stufenfunktion(profiles,decay_rate):
     """
     Generiert mehrere stufenweise E-Mobilitätslastprofile als DataFrame mit Zeitindex.
     
@@ -132,12 +135,12 @@ def generate_emobility_load(profiles: dict = {'WT': ([5, 12, 19], [0.2, 0.6, 1.0
                 t2 = stufenzeiten[stufe_idx + 1]
                 load[i] = np.interp(t, [t1, t2], [laststufen[stufe_idx], laststufen[stufe_idx + 1]])
             else:
-                decay_rate = 0.4
+                # Letzte Stufe mit exponentiellem Abfall
                 peak_time = stufenzeiten[-1]
                 load[i] = laststufen[-1] * np.exp(-decay_rate * (t - peak_time))
         
-        # Normiere die Last, sodass die Summe 1 beträgt
-        load /= load.sum()
+        # Normiere die Last, sodass jeder 15-Minuten-Wert auf 1 normiert ist
+        load /= np.max(load)
         
         # Spalte für den aktuellen Tagestyp hinzufügen
         df[tagestyp] = load
@@ -146,12 +149,8 @@ def generate_emobility_load(profiles: dict = {'WT': ([5, 12, 19], [0.2, 0.6, 1.0
     
     return df
 
-df_Lastprofil_EMob_tag = generate_emobility_load( {'WT': ([5,8, 12, 19], [0.2, 0.5, 0.6, 1.0]), 'SA': ([7, 14, 20], [0.3, 0.5, 0.8]), 'FT': ([0, 12, 18], [0.1, 0.4, 0.7])})
-df_Lastprofil_WP_tag = generate_emobility_load( {'WT': ([5,8, 12, 19], [1, 1, 1, 1]), 'SA': ([7, 14, 20], [1, 1, 1]), 'FT': ([1, 12, 18], [1, 1, 1])})
-
-
 # Lastprofil auf Monatliche Werte erweitern
-def expand_to_monthly_profiles(df, seasonal_factors=None):
+def auf_monate_erweitern(df, seasonal_factors=None):
     """
     Erweitert die Spalten des DataFrames auf monatliche Profile und beeinflusst die Werte mit saisonalen Faktoren.
 
@@ -223,12 +222,16 @@ def saisonale_schwankungen_modellieren(spalten=None):
     return faktor_dict
 
 
-# Beispielaufruf der Funktion
+# Aufruf der Funktion
+
+df_Lastprofil_EMob_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [0.2, 0.5, 0.6, 1.0]), 'SA': ([7, 14, 20], [0.3, 0.5, 0.8]), 'FT': ([0, 12, 18], [0.1, 0.4, 0.7])}, decay_rate = 0.4)
+df_Lastprofil_WP_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [1, 1, 1, 1]), 'SA': ([7, 14, 20], [1, 1, 1]), 'FT': ([1, 12, 18], [1, 1, 1])}, decay_rate = 0.0)
+
 
 monatliche_faktoren = saisonale_schwankungen_modellieren()
-print("Monatliche Faktoren für saisonale Schwankungen:", monatliche_faktoren)
-df_Lastprofil_EMob_jahr = expand_to_monthly_profiles(df_Lastprofil_EMob_tag,)
-df_Lastprofil_WP_jahr = expand_to_monthly_profiles(df_Lastprofil_WP_tag, monatliche_faktoren)
 
-# Ausgabe der erweiterten monatlichen Profile
+df_Lastprofil_EMob_jahr = auf_monate_erweitern(df_Lastprofil_EMob_tag,)
+df_Lastprofil_WP_jahr = auf_monate_erweitern(df_Lastprofil_WP_tag, )
+
+
 print('Ende des Lastprofil modellieren Skripts')
