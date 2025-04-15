@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 import matplotlib.pyplot as plt
 
 """Dieses Skript dient zum Erstellen von Lastprofilen in Anlehnung der des BDEW.
@@ -105,12 +106,14 @@ def plot_custom_load(df):
 # print(lastprofile_df.head())
 
 #%%Stufenfunktion für E-Mobilitätslastprofile
-def generiere_stufenfunktion(profiles,decay_rate):
+def generiere_stufenfunktion(profiles, decay_rate, smoothing_sigma=1.0):
     """
-    Generiert mehrere stufenweise E-Mobilitätslastprofile als DataFrame mit Zeitindex.
+    Generiert mehrere stufenweise E-Mobilitätslastprofile als DataFrame mit Zeitindex und glättet die Ergebnisse.
     
     :param profiles: Ein Dictionary, bei dem die Schlüssel die Tagestypen sind (z. B. 'WT', 'SA') 
                      und die Werte Listen mit Stufenzeiten und Laststufen.
+    :param decay_rate: Exponentieller Abfall nach der letzten Stufe.
+    :param smoothing_sigma: Standardabweichung für die Gauß-Glättung (je größer, desto stärker die Glättung).
     :return: Ein DataFrame mit Zeitindex und einer Spalte pro Tagestyp.
     """
     # Zeitachse in 15-Minuten-Intervallen
@@ -139,9 +142,13 @@ def generiere_stufenfunktion(profiles,decay_rate):
                 peak_time = stufenzeiten[-1]
                 load[i] = laststufen[-1] * np.exp(-decay_rate * (t - peak_time))
         
+        # Glätte die Last mit einer Gauß-Filterung
+        load = gaussian_filter1d(load, sigma=smoothing_sigma)
+        
         # Normiere die Last, sodass jeder 15-Minuten-Wert auf 1 normiert ist
         load /= np.max(load)
-        
+
+                
         # Spalte für den aktuellen Tagestyp hinzufügen
         df[tagestyp] = load
 

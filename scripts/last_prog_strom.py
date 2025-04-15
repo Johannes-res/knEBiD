@@ -68,37 +68,26 @@ def add_day_type(df):
 
         return df_copy
 
-def ergänze_lastprofile(df_last, df_g25, df_h25,df_e_mod, df_WP):
+def ergänze_lastprofile(df_last, df_profil, name):
 
     """
-    Ergänzt den DataFrame df_last mit den Spalten G25 und H25, basierend auf den Werten
-    aus df_g25 und df_h25 entsprechend der Spalte Monats_Tageskennung und den Uhrzeiten.
+    Ergänzt den DataFrame df_last mit der Spalte 'Name', basierend auf den Werten
+    aus df_profil entsprechend der Spalte Monats_Tageskennung und den Uhrzeiten.
     
 
     :param df_last: Der DataFrame, der ergänzt werden soll (z. B. df_Last_22).
-    :param df_g25: Der DataFrame mit den Lastprofilwerten für G25.
-    :param df_h25: Der DataFrame mit den Lastprofilwerten für H25.
+    :param df_profil: Der DataFrame mit den Lastprofilwerten.
+    
     :return: Der ergänzte DataFrame.
     """
-    # Stelle sicher, dass die Indizes von df_g25 und df_h25 datetime.time-Objekte sind
-    df_g25.index = pd.to_datetime(df_g25.index, format='%H:%M:%S').time
-    df_h25.index = pd.to_datetime(df_h25.index, format='%H:%M:%S').time
-    df_e_mod.index = pd.to_datetime(df_e_mod.index, format='%H:%M:%S').time
-    df_WP.index = pd.to_datetime(df_WP.index, format='%H:%M:%S').time
+    # Stelle sicher, dass die Indizes von df_Lastprofildatetime.time-Objekte sind
+    df_profil.index = pd.to_datetime(df_profil.index, format='%H:%M:%S').time
+
 
     # Initialisiere die neuen Spalten G25 und H25
-    df_last['G25'] = df_last.apply(
-        lambda row: df_g25.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
-    )
-    df_last['H25'] = df_last.apply(
-        lambda row: df_h25.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
-    )
-    df_last['EMob'] = df_last.apply(
-        lambda row: df_e_mod.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
-    )
-    df_last['WP'] = df_last.apply(
-        lambda row: df_WP.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
-    )
+    df_last[name] = df_last.apply(
+        lambda row: df_profil.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
+        )
     return df_last
 
 def saisonschwankungen_modellieren(t):
@@ -141,22 +130,22 @@ def modelliere_Sektorenzeitreihen(df_last,ESB_gesamt, ESB_Industrie, ESB_GHD, ES
     df_last['Last_prognose [MWh]']= df_last['Energie [MWh]']* (ESB_gesamt/df_last['Energie [MWh]'].sum())
 
     #Energiemenge des Sektors=      ((((Lastprofil/1000)*Endstrombedarf_Sektor)/1000)*Wichtung_des_Profils + (ESB/len(df_last))*(1-faktor))*saisonschwankungen_modellieren(t)
-    df_last['Industrie'] =          ((((df_last['G25']/1e3) * ESB_Industrie)/1e3)    * faktor_G25 + (ESB_Industrie/len(df_last)) * (1-faktor_G25)) *(0.1*saisonschwankungen_modellieren(t))
-    df_last['GHD'] =                ((((df_last['G25']/1e3) * ESB_GHD)/1e3)          * faktor_G25 + (ESB_GHD/len(df_last))       * (1-faktor_G25)) *(0.1*saisonschwankungen_modellieren(t))
-    df_last['Haushalte_stat'] =     ((((df_last['H25']/1e3) * ESB_Haushalte)/1e3)    * faktor_H25 + (ESB_Haushalte/len(df_last)) * (1-faktor_H25)) *(0.1*saisonschwankungen_modellieren(t))
+    df_last['Industrie'] =          ((((df_last['G25']/1e3) * ESB_Industrie)/1e3)    * faktor_G25 + (ESB_Industrie/len(df_last)) * (1-faktor_G25)) *(0.9+0.1*saisonschwankungen_modellieren(t))
+    df_last['GHD'] =                ((((df_last['G25']/1e3) * ESB_GHD)/1e3)          * faktor_G25 + (ESB_GHD/len(df_last))       * (1-faktor_G25)) *(0.9+0.1*saisonschwankungen_modellieren(t))
+    df_last['Haushalte_stat'] =     ((((df_last['H25']/1e3) * ESB_Haushalte)/1e3)    * faktor_H25 + (ESB_Haushalte/len(df_last)) * (1-faktor_H25)) *(0.9+0.1*saisonschwankungen_modellieren(t))
     # df_last['Haushalte_dyn'] =    ((df_last['H25'] / 1e3) * ESB_Haushalte) * (-3.92e-10 * t**4 + 3.2e-7 * t**3 - 7.02e-5 * t + 2.1e-3*t + 1.24)/1e3 #FEHLER!!!Exponentiell ansteigend!
     df_last['Verkehr'] =            (ESB_Verkehr / len(df_last))
     
-    #prognose zeitreihen der zusätzlichen Verbraucher
-    df_last['EMobilität']=         ((df_last['EMob']        * ESB_Emob)             * faktor_Emob + (ESB_Emob/len(df_last))     *(1-faktor_Emob))   *(0.1*saisonschwankungen_modellieren(t))
-    df_last['Wärmepumpen']=        ((df_last['WP']           * ESB_WP)                * faktor_WP   + (ESB_WP/len(df_last))       *(1-faktor_WP))       *(1.0*saisonschwankungen_modellieren(t))
+    #prognose zeitreihen der zusätzlichen Verbraucher mit Normierung mittels Teilung durch das Integral der Lastprofile
+    df_last['EMobilität']=         (((df_last['EMob']/df_last['EMob'].sum())        * ESB_Emob)             * faktor_Emob + (ESB_Emob/len(df_last))     *(1-faktor_Emob))   *(0.9+0.1*saisonschwankungen_modellieren(t))
+    df_last['Wärmepumpen']=        (((df_last['WP']/df_last['WP'].sum())           * ESB_WP)                * faktor_WP   + (ESB_WP/len(df_last))       *(1-faktor_WP))       *(1.0*saisonschwankungen_modellieren(t))
 
     df_last['Summe_Sektoren_modelliert'] = (df_last['Industrie']
                                             +df_last['GHD']
                                             +df_last['Haushalte_stat']
                                             +df_last['Verkehr']
                                             +df_last['EMobilität']
-                                            +df_last['Wärmepumpen'])#*saisonschwankungen_modellieren(t)
+                                            +df_last['Wärmepumpen'])
 
     ##Hier wird der Anteil der einzelnen Sektoren, dynamisiert durch die Standardlastprofile, an der Gesamtlast für jede Viertelstunde berechnet
     df_last['Anteil_Industrie'] = df_last['Industrie'] / df_last['Summe_Sektoren_modelliert']
@@ -179,8 +168,20 @@ df_übersicht_23 = verbrauchsübersicht_erstellen(df_Nettostromerzeugung_23,df_A
 df_übersicht_22 = add_day_type(df_übersicht_22)
 df_übersicht_23 = add_day_type(df_übersicht_23)
 
-df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_G25, df_Lastprofil_H25, df_e_mod, df_WP)
-df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_G25, df_Lastprofil_H25, df_e_mod, df_WP)
+df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_G25, 'G25')
+df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_H25, 'H25')
+df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_e_mod, 'EMob')
+df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_WP, 'WP')
+
+df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_G25, 'G25')
+df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_H25, 'H25')
+df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_e_mod, 'EMob')
+df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_WP, 'WP')
+
+#Hier werden die Zeitreihen der Sektoren mit den Endstrombedarfen der Sektoren ergänzt
+#Die Endstrombedarfe stammen aus dem AGEB und sind auf die Jahre 2022 und 2023 bezogen
+#Die Werte für die E-Mobilität und Wärmepumpen sind noch nicht berücksichtigt, da diese erst in den Jahren 2045/46 relevant werden  
+
 
 df_übersicht_22 = modelliere_Sektorenzeitreihen(
      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
@@ -212,20 +213,53 @@ df_übersicht_23 = modelliere_Sektorenzeitreihen(
      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
     )
 
-df_übersicht_45 = modelliere_Sektorenzeitreihen(
+#Für die Strombedarfe des Jahres 2045 wurden die Mittelwerte der Metastudien von Agora und EWI (DENA) verwendet
+df_übersicht_45_22 = modelliere_Sektorenzeitreihen(
      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     767500000,                                                                      #Gesamtstrombedarf
-     df_AGEB_23.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
-     df_AGEB_23.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
-     df_AGEB_23.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
-     df_AGEB_23.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
-     0,                                                                                                      #Endstrombedarf der E-Mobilität
-     0,                                                                                                       #Endstrombedarf der Wärmepumpen
+     767500000,                                                                                                 #Gesamtstrombedarf
+     351330000,                                                                                                 #Endstrombedarf der Industrie
+     90010000,                                                                                                  #Endstrombedarf des GHD
+     183590000,                                                                                                 #Endstrombedarf der Haushalte
+     100000000,                                                                                                 #Endstrombedarf des Verkehrs
+     42500000,                                                                                                  #Endstrombedarf der E-Mobilität
+     1,                                                                                                         #Endstrombedarf der Wärmepumpen
      0.5,                                                                                                       #Wichtung des Profils G25
      0.5,                                                                                                       #Wichtung des Profils H25
      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
     )
-# df_übersicht_22.drop(columns=['Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25','EMob'], inplace=True)
-# df_übersicht_23.drop(columns=['Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25'], inplace=True)
-print("Ende des last_prognose Skripts")
+
+df_übersicht_45_23 = modelliere_Sektorenzeitreihen(
+     df_übersicht_23,                                                                                           #Zeitreihe, welche ergänzt werden soll
+     767500000,                                                                                                 #Gesamtstrombedarf
+     351330000,                                                                                                 #Endstrombedarf der Industrie
+     90010000,                                                                                                  #Endstrombedarf des GHD
+     183590000,                                                                                                 #Endstrombedarf der Haushalte
+     100000000,                                                                                                 #Endstrombedarf des Verkehrs
+     42500000,                                                                                                  #Endstrombedarf der E-Mobilität
+     1,                                                                                                         #Endstrombedarf der Wärmepumpen
+     0.5,                                                                                                       #Wichtung des Profils G25
+     0.5,                                                                                                       #Wichtung des Profils H25
+     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+    )
+
+df_22=df_übersicht_22.copy()
+df_23=df_übersicht_23.copy()
+df_45_22=df_übersicht_45_22.copy()
+df_45_23=df_übersicht_45_23.copy()
+
+#Erstellen eines zweijährigen DataFrames mit den Zeitreihen der Jahre 22 und 23 als Basis
+df_45_46=pd.concat([df_45_22, df_45_23], axis=0)
+
+def df_stromverbrauch(df):
+    df.drop(columns=['Last [MW]','EMobilität','Wärmepumpen','Summe_Sektoren_modelliert','Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25','EMob','WP','Anteil_Industrie', 'Anteil_GHD', 'Anteil_Haushalte_stat', 'Anteil_Verkehr', 'Anteil_EMobilität', 'Anteil_Wärmepumpen'], inplace=True)
+    return df
+df_strom_22 = df_stromverbrauch(df_22)
+df_strom_23 = df_stromverbrauch(df_23)
+df_strom_45_22 = df_stromverbrauch(df_45_22)
+df_strom_45_23 = df_stromverbrauch(df_45_23)
+df_strom_45_46 = df_stromverbrauch(df_45_46) 
+
+
+print("Ende des last_prognose_strom Skripts")

@@ -5,10 +5,10 @@ import matplotlib.dates as mdates
 
 
 #Hier darzustellenden DataFrame importieren
-from last_prognose import df_übersicht_45 as df
+from last_prog_allg import df_45_22 as df
 
 #Hier noch Namen eintragen um Grafiken zu benennen
-df_name = 'df_übersicht_45'  # Name des DataFrames für die Dateinamen der Grafiken
+df_name = 'df_45_22_allg'  # Name des DataFrames für die Dateinamen der Grafiken
 
 
 
@@ -218,7 +218,7 @@ def plot_weekly_aggregation(df, columns, week_start, title=None, ylabel=None, le
 #%% Grafik generieren
 
 # Grafik generieren für den Jahresgang
-selected_columns =       ['Energie [MWh]', 'Last_prognose [MWh]']
+selected_columns =       ['Biomasse', 'Wasserstoff','Fernwärme', 'Last_prognose [MWh]','Energie [MWh]']
 custom_labels = selected_columns
 
 title =                 'Netzlast und modellierter Verbrauch für das Jahr 2022'
