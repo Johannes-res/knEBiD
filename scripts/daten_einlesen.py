@@ -7,14 +7,21 @@ import pandas as pd
 #lädt die Zeitreihen der Nettostromerzeugung in Deutschland für das Jahr 2022
 df_energy_charts_22 = pd.read_excel(r'data\energy-charts\energy-charts_Öffentliche_Nettostromerzeugung_in_Deutschland_2022.xlsx')
 df_energy_charts_23 = pd.read_excel(r'data\energy-charts\energy-charts_Öffentliche_Nettostromerzeugung_in_Deutschland_2023.xlsx')
+df_energy_charts_24 = pd.read_excel(r'data\energy-charts\energy-charts_Öffentliche_Nettostromerzeugung_in_Deutschland_2024.xlsx')
 
 #lädt die Endenergiebedarfsdaten für das Jahr 2022
 df_AGEB_22_org = pd.read_excel(r'data\Endenergiebedarf_AGEB\EBD22e.xlsx')
 df_AGEB_23_org = pd.read_excel(r'data\Endenergiebedarf_AGEB\EBD23e.xlsx')
+df_AGEB_24_org = pd.read_excel(r'data\Endenergiebedarf_AGEB\EBD24pp.xlsx')
 
 #lädt die Lastprofile Haushalte H25 und Gewerbe G25
 df_Lastprofil_H25 = pd.read_excel(r'data\Kopie_von_Repräsentative_Profile_BDEW_H25_G25_L25_P25_S25_Veröffentlichung.xlsx', sheet_name="H25")
 df_Lastprofil_G25 = pd.read_excel(r'data\Kopie_von_Repräsentative_Profile_BDEW_H25_G25_L25_P25_S25_Veröffentlichung.xlsx', sheet_name="G25")
+
+#installierte Leistung der Stromerzeugungstechnologien in Deutschland
+df_inst_Strom_Leistung_22 = pd.read_excel(r'data\energy-charts\energy-charts_Installierte_Netto-Leistung_zur_Stromerzeugung_in_Deutschland_in_2022.xlsx')
+df_inst_Strom_Leistung_23 = pd.read_excel(r'data\energy-charts\energy-charts_Installierte_Netto-Leistung_zur_Stromerzeugung_in_Deutschland_in_2023.xlsx')
+df_inst_Strom_Leistung_24 = pd.read_excel(r'data\energy-charts\energy-charts_Installierte_Netto-Leistung_zur_Stromerzeugung_in_Deutschland_in_2024.xlsx')
 
 
 
@@ -41,6 +48,7 @@ def prepare_energy_charts(df, year):
 
 df_Nettostromerzeugung_22 = prepare_energy_charts(df_energy_charts_22, 2022)
 df_Nettostromerzeugung_23 = prepare_energy_charts(df_energy_charts_23, 2023)
+df_Nettostromerzeugung_24 = prepare_energy_charts(df_energy_charts_24, 2024)
 
 #%% Lastprofile aufbereiten
 def prepare_lastprofile(df):
@@ -138,9 +146,11 @@ queries_AGEB = [
 ]
 df_AGEB_22 = pd.DataFrame()
 df_AGEB_23 = pd.DataFrame()
+df_AGEB_24 = pd.DataFrame()
 
 df_AGEB_22 = update_dataframe(df_AGEB_22,df_AGEB_22_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 df_AGEB_23 = update_dataframe(df_AGEB_23,df_AGEB_23_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
+df_AGEB_24 = update_dataframe(df_AGEB_24,df_AGEB_24_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 
 
 
@@ -161,4 +171,5 @@ queries_AGEB = [
 
 df_AGEB_22 = update_dataframe(df_AGEB_22,df_AGEB_22_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 df_AGEB_23 = update_dataframe(df_AGEB_23,df_AGEB_23_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
+df_AGEB_24 = update_dataframe(df_AGEB_24,df_AGEB_24_org, queries_AGEB, kenngröße_AGEB, kenngröße_AGEB)
 
