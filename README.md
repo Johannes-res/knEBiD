@@ -30,9 +30,22 @@ Hier können beliebige Jahreszeitreihen importiert werden und der Jahresgang, ei
 # last_aufteilen.py
 Hier wird die Lastzeitreihe anhand der Endstromverbräuche der Sektoren sowie den Lastprofilen aufgeteilt.
 
-# last_prognose.py
-Macht das selbe wie last_aufteilen.py. Zusätzlich können neue Verbrauchergruppen wie zb. die Emobilität mit einem Lastprofil eingelesen und der anteil an der Last pro 15min-Wert ermittelt werden
+# last_prog_strom.py
+Macht das selbe wie last_aufteilen.py. Zusätzlich können neue Verbrauchergruppen wie zb. die Emobilität mit einem Lastprofil eingelesen und der anteil an der Last pro 15min-Wert ermittelt werden.
+
+# last_prog_allg.py
+Nutzt Funktionen aus lastprofile_modellieren um benutzerspezifische Lastprofile zu erstellen. Mittels der Funktion ergänze_Zeitreihen können diese dann an den Zeitreihendataframe aus last_prog_strom angegliedert werden und so den gesamten Energiebedarf 15min aufgelöst darstellen.
 
 # lastprofile_modellieren.py
 Schafft die Möglichkeit eigene Lastprofile in Anlehnung der Standardlastprofile des BDEW zu erstellen.
 Momentan ist ein EMob_Lastprofil sowie ein Wärmpepumpen Lastprofil initialisiert.
+
+# klimaneutral_heute.py
+Ziel ist die Verschiebung der Energieträger der AGEB Energiebilanzen der letzten Jahre hinzu klimaneutralen, also primär Strom und Wasserstoff. So soll der Bedarf an klimaneutraler Energiebereitstellung auf heute bezogen dargestellt werden.
+
+# Datenwege Verbrauch
+
+1. klimaneutral_heute.py importiert die über daten_einlesen.py eingelesene Tabelle der Energiebilanzen und benennt die Spalten zu den Energieträgern um.Zusätzlich erfolgt die Umrechnung von TJ auf GWh. Dann wird pro Sektor jeder Energieträger dem neuen klimaneutralem Energieträger zugeordnet. Am ende erhält man pro sektor die Umsortierung, die Summe für Strom, Wasserstoff,.. und auch eine Gesamtübersicht.
+2. Die Gesamtübersicht ist Datengrundlage für den Endenergiebedarf im Skript last_prog_allg.py für alle weiteren Energieträger ausser Strom.
+    Der Energiebedarf an Strom aus klimaneutral_heute.py wird in last_prog_strom.py als jahresmenge eingegeben und so die Zeitreihe proportional gebildet. Diese kann dann in last_prog_allg.py einfließen und die Grundlage bilden.
+3. die erstellte Zeitreihe in last_prog_allg. kann nun grapisch_darstellen.py übergeben werden und dort die interessanten Spalten und Abschnitte ausgewählt werden.

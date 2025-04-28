@@ -15,6 +15,8 @@ from daten_einlesen import df_Lastprofil_G25
 from lastprofile_modellieren import df_Lastprofil_EMob_jahr as df_e_mod
 from lastprofile_modellieren import df_Lastprofil_WP_jahr as df_WP
 
+from klimaneutral_heute import übersicht_gesamt as kn_heute_ü
+
 #%% Funktionen definieren
 def verbrauchsübersicht_erstellen(df_Nettostromerzeugung, df_AGEB):
 
@@ -286,6 +288,20 @@ df_übersicht_45_24 = modelliere_Sektorenzeitreihen(
      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
     )
 
+df_übersicht_22_klimaneutral = modelliere_Sektorenzeitreihen(
+     df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
+     kn_heute_ü.loc['Summe_Energieträger', 'Strom']*1e6,                                                                                                 #Gesamtstrombedarf
+     kn_heute_ü.loc[2, 'Strom']*1e6,                                                                                                 #Endstrombedarf der Industrie
+     kn_heute_ü.loc[0, 'Strom']*1e6*0.4,                                                                                                  #Endstrombedarf des GHD
+     kn_heute_ü.loc[0, 'Strom']*1e6*0.4,                                                                                                 #Endstrombedarf der Haushalte
+     kn_heute_ü.loc[1, 'Strom']*1e6*0.4,                                                                                                 #Endstrombedarf des Verkehrs
+     kn_heute_ü.loc[1, 'Strom']*1e6*0.6,                                                                                                  #Endstrombedarf der E-Mobilität
+     kn_heute_ü.loc[0, 'Strom']*1e6*0.2,                                                                                                         #Endstrombedarf der Wärmepumpen
+     0.5,                                                                                                       #Wichtung des Profils G25
+     0.5,                                                                                                       #Wichtung des Profils H25
+     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+    )
 
 
 df_22=df_übersicht_22.copy()
@@ -294,13 +310,15 @@ df_24=df_übersicht_24.copy()
 df_45_22=df_übersicht_45_22.copy()
 df_45_23=df_übersicht_45_23.copy()
 df_45_24=df_übersicht_45_24.copy()
+df_22_kn=df_übersicht_22_klimaneutral.copy()
+
 
 #Erstellen eines zweijährigen DataFrames mit den Zeitreihen der Jahre 22 und 23 als Basis
 df_45_46=pd.concat([df_45_22, df_45_23], axis=0)
 df_45_46_47=pd.concat([df_45_22, df_45_23, df_45_24], axis=0)
 
 def drop_für_Übersicht(df):
-    df.drop(columns=['Last [MW]','EMobilität','Wärmepumpen','Summe_Sektoren_modelliert','Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25','EMob','WP','Anteil_Industrie', 'Anteil_GHD', 'Anteil_Haushalte_stat', 'Anteil_Verkehr', 'Anteil_EMobilität', 'Anteil_Wärmepumpen'], inplace=True)
+    df.drop(columns=['Last [MW]','Summe_Sektoren_modelliert','Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25','EMob','WP','Anteil_Industrie', 'Anteil_GHD', 'Anteil_Haushalte_stat', 'Anteil_Verkehr', 'Anteil_EMobilität', 'Anteil_Wärmepumpen'], inplace=True)
     return df
 df_strom_22 = drop_für_Übersicht(df_22)
 df_strom_23 = drop_für_Übersicht(df_23)
@@ -310,6 +328,8 @@ df_strom_45_23 = drop_für_Übersicht(df_45_23)
 df_strom_45_24 = drop_für_Übersicht(df_45_24)
 df_strom_45_46 = drop_für_Übersicht(df_45_46)
 df_strom_45_46_47 = drop_für_Übersicht(df_45_46_47) 
+
+df_strom_22_kn = drop_für_Übersicht(df_22_kn)
 
 
 print("Ende des last_prognose_strom Skripts")

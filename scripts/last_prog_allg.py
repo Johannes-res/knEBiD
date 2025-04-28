@@ -55,6 +55,8 @@ def ergänze_Zeitreihen(df, df_profil, name, EEB, saisonalerfaktor):
 from lastprofile_modellieren import generiere_stufenfunktion
 from lastprofile_modellieren import auf_monate_erweitern
 
+from klimaneutral_heute import übersicht_gesamt
+
 df_wasserstoffprofil = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [1, 1, 1, 1]), 'SA': ([7, 14, 20], [1, 1, 1]), 'FT': ([1, 12, 18], [1, 1, 1])}, decay_rate = 0.0)
 df_wasserstoffprofil = auf_monate_erweitern(df_wasserstoffprofil,)
 
@@ -70,21 +72,27 @@ df_sonstige = auf_monate_erweitern(df_sonstige,)
 
 
 #Dann werden diese der Zeitreihe hinzugefügt und mit den Jahresenergiemengen verrechnet
-from last_prog_strom import df_strom_45_22
+from last_prog_strom import df_strom_22_kn
 
 
-df_45_22 = ergänze_Zeitreihen(df_strom_45_22, df_wasserstoffprofil, 'Wasserstoff', 226000000, 0.5)
-df_45_22 = ergänze_Zeitreihen(df_45_22, df_biomasse, 'Biomasse', 186670000, 0)
-df_45_22 = ergänze_Zeitreihen(df_45_22, df_fernwärme, 'Fernwärme', 129000000, 1)
-df_45_22 = ergänze_Zeitreihen(df_45_22, df_sonstige, 'Sonstige', 172500000, 0)
+df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_wasserstoffprofil, 'Wasserstoff', übersicht_gesamt.loc['Summe_Energieträger', 'Wasserstoff']*1e6, 0.5)
+df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_biomasse, 'Biomasse', übersicht_gesamt.loc['Summe_Energieträger', 'Biomasse']*1e6, 0)
+df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_wasserstoffprofil, 'Thermie', übersicht_gesamt.loc['Summe_Energieträger', 'Thermie']*1e6, 1)
+df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_wasserstoffprofil, 'E-Fuels', übersicht_gesamt.loc['Summe_Energieträger', 'E-Fuels']*1e6, 0)
+
+df_22_kn.rename(columns={'Last_prognose [MWh]': 'Strom [MWh]'}, inplace=True)
+df_22_kn.rename(columns={'Energie [MWh]': 'Energie_22_org [MWh]'}, inplace=True)
+#df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_fernwärme, 'Fernwärme', übersicht_gesamt.loc['Summe_Energieträger', 'Fernwärme'], 1)
+# df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_sonstige, 'Sonstige', 172500000, 0)
 
 
-print(df_45_22['Last_prognose [MWh]'].sum())
-print(df_45_22['Wasserstoff'].sum())
-print(df_45_22['Biomasse'].sum())
-print(df_45_22['Fernwärme'].sum())
-print(df_45_22['Sonstige'].sum())
-print(df_45_22['Last_prognose [MWh]'].sum()+df_45_22['Wasserstoff'].sum() + df_45_22['Biomasse'].sum() + df_45_22['Fernwärme'].sum() + df_45_22['Sonstige'].sum())
+print(f"Strom: {df_22_kn['Strom [MWh]'].sum()}")
+print(f"Wasserstoff:{df_22_kn['Wasserstoff'].sum()}")
+print(f"Biomasse: {df_22_kn['Biomasse'].sum()}")
+print(f"E-Fuels: {df_22_kn['E-Fuels'].sum()}")
+print(f"Thermie: {df_22_kn['Thermie'].sum()}")
+
+print(df_22_kn['Strom [MWh]'].sum()+df_22_kn['Wasserstoff'].sum() + df_22_kn['Biomasse'].sum() + df_22_kn['E-Fuels'].sum() + df_22_kn['Thermie'].sum())
 print('Ende des Lastprognose allgemein Skriptes')
 
 
