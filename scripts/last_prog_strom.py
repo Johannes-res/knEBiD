@@ -14,6 +14,7 @@ from daten_einlesen import df_Lastprofil_H25
 from daten_einlesen import df_Lastprofil_G25
 from lastprofile_modellieren import df_Lastprofil_EMob_jahr as df_e_mod
 from lastprofile_modellieren import df_Lastprofil_WP_jahr as df_WP
+from scipy.ndimage import gaussian_filter1d
 
 from klimaneutral_heute import übersicht_gesamt as kn_heute_ü
 
@@ -88,11 +89,27 @@ def ergänze_lastprofile(df_last, df_profil, name):
     df_profil.index = pd.to_datetime(df_profil.index, format='%H:%M:%S').time
 
 
-    # Initialisiere die neuen Spalten G25 und H25
+    # Initialisiere die neuen Spalten
     df_last[name] = df_last.apply(
         lambda row: df_profil.loc[row.name.time(), row['Monats_Tageskennung']], axis=1
         )
+    
     return df_last
+
+def glätte_lastprofile_jährlich(df_last, spalte): #unbenutzt
+    """
+    Glättet die Zeitreihe in der angegebenen Spalte des DataFrames über das Jahr hinweg
+    mithilfe eines Gauß-Filters.
+    
+    :param df_last: DataFrame mit der Zeitreihe.
+    :param spalte: Name der Spalte, die geglättet werden soll.
+    :return: DataFrame mit geglätteter Zeitreihe.
+    """
+    # Wende den Gauß-Filter auf die Spalte an
+    df_last[spalte] = gaussian_filter1d(df_last[spalte], sigma=1)
+    
+    return df_last
+     
 
 def saisonschwankungen_modellieren(t):
     """
@@ -142,7 +159,7 @@ def modelliere_Sektorenzeitreihen(df_last,ESB_gesamt, ESB_Industrie, ESB_GHD, ES
     
     #prognose zeitreihen der zusätzlichen Verbraucher mit Normierung mittels Teilung durch das Integral der Lastprofile
     df_last['EMobilität']=         (((df_last['EMob']/df_last['EMob'].sum())        * ESB_Emob)             * faktor_Emob + (ESB_Emob/len(df_last))     *(1-faktor_Emob))   *(0.9+0.1*saisonschwankungen_modellieren(t))
-    df_last['Wärmepumpen']=        (((df_last['WP']/df_last['WP'].sum())           * ESB_WP)                * faktor_WP   + (ESB_WP/len(df_last))       *(1-faktor_WP))       *(1.0*saisonschwankungen_modellieren(t))
+    df_last['Wärmepumpen']=        (((df_last['WP']/df_last['WP'].sum())           * ESB_WP)                * faktor_WP   + (ESB_WP/len(df_last))       *(1-faktor_WP))       #*(1*saisonschwankungen_modellieren(t))
 
     df_last['Summe_Sektoren_modelliert'] = (df_last['Industrie']
                                             +df_last['GHD']
@@ -160,7 +177,7 @@ def modelliere_Sektorenzeitreihen(df_last,ESB_gesamt, ESB_Industrie, ESB_GHD, ES
     df_last['Anteil_EMobilität'] = df_last['EMobilität'] / df_last['Summe_Sektoren_modelliert']
     df_last['Anteil_Wärmepumpen'] = df_last['Wärmepumpen'] / df_last['Summe_Sektoren_modelliert']
 
-
+    df_last['Strom [MWh]'] = df_last['Last_prognose [MWh]'] + df_last['EMobilität'] + df_last['Wärmepumpen']
     return df_last
 
 
@@ -178,6 +195,7 @@ df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_G25, 'G2
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_H25, 'H25')
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_e_mod, 'EMob')
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_WP, 'WP')
+# df_übersicht_22 = glätte_lastprofile_jährlich(df_übersicht_22, 'WP')
 
 df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_G25, 'G25')
 df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_H25, 'H25')
@@ -292,15 +310,15 @@ df_übersicht_22_klimaneutral = modelliere_Sektorenzeitreihen(
      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
      kn_heute_ü.loc['Summe_Energieträger', 'Strom']*1e6,                                                                                                 #Gesamtstrombedarf
      kn_heute_ü.loc[2, 'Strom']*1e6,                                                                                                 #Endstrombedarf der Industrie
-     kn_heute_ü.loc[0, 'Strom']*1e6*0.4,                                                                                                  #Endstrombedarf des GHD
-     kn_heute_ü.loc[0, 'Strom']*1e6*0.4,                                                                                                 #Endstrombedarf der Haushalte
-     kn_heute_ü.loc[1, 'Strom']*1e6*0.4,                                                                                                 #Endstrombedarf des Verkehrs
-     kn_heute_ü.loc[1, 'Strom']*1e6*0.6,                                                                                                  #Endstrombedarf der E-Mobilität
-     kn_heute_ü.loc[0, 'Strom']*1e6*0.2,                                                                                                         #Endstrombedarf der Wärmepumpen
+     kn_heute_ü.loc[0, 'Strom']*1e6*0.5,                                                                                                  #Endstrombedarf des GHD
+     kn_heute_ü.loc[0, 'Strom']*1e6*0.5,                                                                                                 #Endstrombedarf der Haushalte
+     kn_heute_ü.loc[1, 'Strom']*1e6,                                                                                                 #Endstrombedarf des Verkehrs
+     kn_heute_ü.loc['Summe_Energieträger', 'EMobilität']*1e6,                                                                                                  #Endstrombedarf der E-Mobilität
+     kn_heute_ü.loc['Summe_Energieträger', 'Wärmepumpen']*1e6,                                                                                                         #Endstrombedarf der Wärmepumpen
      0.5,                                                                                                       #Wichtung des Profils G25
      0.5,                                                                                                       #Wichtung des Profils H25
      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+     1                                                                                                        #Wichtung des Profils Wärmepumpen
     )
 
 

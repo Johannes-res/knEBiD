@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 from last_prog_allg import df_22_kn as df
 
 #Hier noch Namen eintragen um Grafiken zu benennen
-df_name = 'df_22_kn'  # Name des DataFrames für die Dateinamen der Grafiken
+df_name = 'df_22_kn_wp_dyn_emob_wp'  # Name des DataFrames für die Dateinamen der Grafiken
 
 
 

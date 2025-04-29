@@ -80,8 +80,8 @@ df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_biomasse, 'Biomasse', übersic
 df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_wasserstoffprofil, 'Thermie', übersicht_gesamt.loc['Summe_Energieträger', 'Thermie']*1e6, 1)
 df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_wasserstoffprofil, 'E-Fuels', übersicht_gesamt.loc['Summe_Energieträger', 'E-Fuels']*1e6, 0)
 
-df_22_kn.rename(columns={'Last_prognose [MWh]': 'Strom [MWh]'}, inplace=True)
-df_22_kn.rename(columns={'Energie [MWh]': 'Energie_22_org [MWh]'}, inplace=True)
+#df_22_kn.rename(columns={'Last_prognose [MWh]': 'Strom [MWh]'}, inplace=True)
+df_22_kn.rename(columns={'Energie [MWh]': 'Strom_22_org [MWh]'}, inplace=True)
 #df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_fernwärme, 'Fernwärme', übersicht_gesamt.loc['Summe_Energieträger', 'Fernwärme'], 1)
 # df_22_kn = ergänze_Zeitreihen(df_strom_22_kn, df_sonstige, 'Sonstige', 172500000, 0)
 
@@ -91,6 +91,7 @@ print(f"Wasserstoff:{df_22_kn['Wasserstoff'].sum()}")
 print(f"Biomasse: {df_22_kn['Biomasse'].sum()}")
 print(f"E-Fuels: {df_22_kn['E-Fuels'].sum()}")
 print(f"Thermie: {df_22_kn['Thermie'].sum()}")
+print(f"Wärmepumpen: {df_22_kn['Wärmepumpen'].sum()}")
 
 print(df_22_kn['Strom [MWh]'].sum()+df_22_kn['Wasserstoff'].sum() + df_22_kn['Biomasse'].sum() + df_22_kn['E-Fuels'].sum() + df_22_kn['Thermie'].sum())
 print('Ende des Lastprognose allgemein Skriptes')

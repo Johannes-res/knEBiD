@@ -126,7 +126,7 @@ sektor_industrie = 'Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe'
 # Diese Zuordnung ist nicht final und muss noch ggf. angepasst werden. Die mit # angegebenen Energieträger waren in der AGEB Tabelle 2022 nicht 0.
 energietraeger_verkehr = [
 
-    ('Steinkohle',                                              'Strom', None),
+    ('Steinkohle',                                              'Wärmepumpen', None),
     ('SteinBriketts',                                           'Strom', None),
     ('SteinKoks',                                               'Strom', None),
     ('Andere Steinkohlenprodukte',                              'Strom', None),
@@ -135,10 +135,10 @@ energietraeger_verkehr = [
     ('Andere Braunkohlenprodukte',                              'Strom', None),
     ('Hartbraunkohle',                                          'Strom', None),
     ('Erdöl (roh)',                                             'Strom', None),
-    ('Ottokraftstoff',                                          'Strom',0.3),                        #
+    ('Ottokraftstoff',                                          'EMobilität',0.3),                        #
     ('Rohbenzin',                                               'Strom', None),
     ('Flugturbinenenkraftstoff',                                'E-Fules',1.5),            #
-    ('Dieselkraftstoff',                                        'Strom',0.3),                      #
+    ('Dieselkraftstoff',                                        'EMobilität',0.3),                      #
     ('Heizöl leicht',                                           'Strom', None),
     ('Heizöl schwer',                                           'Strom', None),
     ('Petrolkoks',                                              'Strom', None),
@@ -153,7 +153,7 @@ energietraeger_verkehr = [
     ('Biomasse, erneuerbare Abfälle',                           'Biogas', None),  #
     ('Solarthermie, Geothermie, Umweltwärme',                   'Thermie', None),
     ('Fossile Abfälle, Sonstige',                               'Strom', None),
-    ('Strom',                                                   'Strom', None),                                 #
+    ('Strom',                                                   'EMobilität', None),                                 #
     ('Kernenergie',                                             'Strom', None),
     ('Fernwärme',                                               'Strom', None),
    # ('Primärenergieträger',                                     'Primärenergieträger', None),
@@ -183,7 +183,7 @@ energietraeger_gebäude = [
     ('Andere Mineralölprodukte',                'Wasserstoff', None),#
     ('Kokereigas, Stadtgas',                    'Strom', None),
     ('Gichtgas, Konvertergas',                  'Strom', None),
-    ('Naturgase, Erdgas, Erdölgas',             'Strom', 0.5),#
+    ('Naturgase, Erdgas, Erdölgas',             'Wärmepumpen', 0.5),#
     #('Naturgase, Erdgas, Erdölgas',             'Wasserstoff', 1),# es Kann auch durch doppelnennung eine Aufteilung innerhalb des Energieträges erreicht werden. Danach müsste
     ('Grubengas',                               'Strom', None),
     ('Wasserkraft, Windenergie, Photovoltaik',  'Strom', None),
@@ -191,8 +191,8 @@ energietraeger_gebäude = [
     ('Solarthermie, Geothermie, Umweltwärme',   'Thermie', None),
     ('Fossile Abfälle, Sonstige',               'Strom', None),
     ('Strom',                                   'Strom', None),
-    ('Kernenergie',                             'Strom', None),
-    ('Fernwärme',                               'Strom', 0.5),
+    ('Kernenergie',                             'EMobilität', None),
+    ('Fernwärme',                               'Wärmepumpen', 0.5),
     #('Primärenergieträger',                     'Strom', None),
     #('Sekundärenergieträger',                   'Strom', None),
     ('Summe',                                   'Summe_Gebäude', None ),# Nach Studienarbeit reduziert sich der EEB um 34% bis 2045. Dies liegt jedoch vorallem an der gebäudetechnischen Sanierung und nicht an der Änderung der Energieträger. 
@@ -209,7 +209,7 @@ energietraeger_industrie = [
     ('Hartbraunkohle',                          'Strom', None),
     ('Erdöl (roh)',                             'Strom', None),
     ('Ottokraftstoff',                          'Wasserstoff', None),
-    ('Rohbenzin',                               'Strom', None),
+    ('Rohbenzin',                               'EMobilität', None),
     ('Flugturbinenenkraftstoff',                'E-Fules', None),
     ('Dieselkraftstoff',                        'Wasserstoff', None),#
     ('Heizöl leicht',                           'Strom', 0.33),#
@@ -222,13 +222,13 @@ energietraeger_industrie = [
     ('Gichtgas, Konvertergas',                  'Wasserstoff', None),
     ('Naturgase, Erdgas, Erdölgas',             'Strom', 0.5),#
     #('Naturgase, Erdgas, Erdölgas',             'Wasserstoff', 1),# es Kann auch durch doppelnennung eine Aufteilung innerhalb des Energieträges erreicht werden. Danach müsste
-    ('Grubengas',                               'Strom', None),
+    ('Grubengas',                               'Wärmepumpen', None),
     ('Wasserkraft, Windenergie, Photovoltaik',  'Strom', None),
     ('Biomasse, erneuerbare Abfälle',           'Biomasse', None),#
     ('Solarthermie, Geothermie, Umweltwärme',   'Thermie', None),
     ('Fossile Abfälle, Sonstige',               'Strom', None),
     ('Strom',                                   'Strom', None),
-    ('Kernenergie',                             'Strom', None),
+    ('Kernenergie',                             'Wärmepumpen', None),
     ('Fernwärme',                               'Strom', None),
    # ('Primärenergieträger',                     'Strom', None),
    # ('Sekundärenergieträger',                   'Strom', None),
@@ -250,12 +250,14 @@ result_industrie = extrahieren_und_zuordnen(df_AGEB_benannt, sektor_industrie, e
 übersicht_gesamt['Biomasse'] = result_gebäude.loc[31,'Biomasse'],result_verkehr.loc[31,'Biogas'],result_industrie.loc[31,'Biomasse']
 übersicht_gesamt['E-Fuels'] = result_gebäude.loc[31,'E-Fules'],result_verkehr.loc[31,'E-Fules'],result_industrie.loc[31,'E-Fules']
 übersicht_gesamt['Thermie'] = result_gebäude.loc[31,'Thermie'],result_verkehr.loc[31,'Thermie'],result_industrie.loc[31,'Thermie']
+übersicht_gesamt['Wärmepumpen'] = result_gebäude.loc[31,'Wärmepumpen'],result_verkehr.loc[31,'Wärmepumpen'],result_industrie.loc[31,'Wärmepumpen']
+übersicht_gesamt['EMobilität'] = result_gebäude.loc[31,'EMobilität'],result_verkehr.loc[31,'EMobilität'],result_industrie.loc[31,'EMobilität']
 übersicht_gesamt['Summe_Sektor'] = übersicht_gesamt.iloc[:, 1:].sum(axis=1)
 # Eine zusätzliche Zeile hinzufügen, die die Summe der Spalten enthält
 übersicht_gesamt.loc['Summe_Energieträger'] = übersicht_gesamt.sum(numeric_only=True)
 
 
-übersicht_gesamt.to_excel(r'data\Ausgabe\Energieträger_Übersicht_kn_heute.xlsx')
+übersicht_gesamt.to_excel(r'data\Ausgabe\Energieträger_Übersicht_kn_heute_mit_wp.xlsx')
 
 print("Ende des bedarf_klimaneutral_heute Skripts")
 # %%

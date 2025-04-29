@@ -159,13 +159,14 @@ def generiere_stufenfunktion(profiles, decay_rate, smoothing_sigma=1.0):
 # Lastprofil auf Monatliche Werte erweitern
 def auf_monate_erweitern(df, seasonal_factors=None):
     """
-    Erweitert die Spalten des DataFrames auf monatliche Profile und beeinflusst die Werte mit saisonalen Faktoren.
+    Erweitert die Spalten des DataFrames auf monatliche Profile, beeinflusst die Werte mit saisonalen Faktoren
+    und glättet die resultierenden Profile.
 
     :param df: DataFrame mit E-Mobilitätslastprofilen (z. B. WT, SA, FT).
     :param seasonal_factors: Dictionary mit monatlichen Faktoren für jede Spalte im Format:
                              {'WT': [1.0, 0.9, ..., 1.1], 'SA': [...], 'FT': [...]}
                              Falls None, wird ein 1.0 verwendet.
-    :return: Ein DataFrame mit monatlichen Spalten (z. B. 01_WT, 02_SA, ...).
+    :return: Ein DataFrame mit geglätteten monatlichen Spalten (z. B. 01_WT, 02_SA, ...).
     """
     if seasonal_factors is None:
         # Standard-Saisonfaktoren (z. B. höhere Last im Winter, niedrigere im Sommer)
@@ -187,46 +188,50 @@ def auf_monate_erweitern(df, seasonal_factors=None):
             monthly_col_name = f"{month:02d}_{col}"
             monthly_df[monthly_col_name] = df[col] * factor
 
+
     # Sortiere die Spalten nach Monaten
     monthly_df = monthly_df.reindex(sorted(monthly_df.columns, key=lambda x: int(x.split('_')[0])), axis=1)
 
+    
+
     return monthly_df
 
-def saisonale_schwankungen_modellieren(spalten=None):
-    """
-    Simuliert saisonale Schwankungen im Stromverbrauch und gibt ein Dictionary mit monatlichen Faktoren zurück.
-    Jeder Faktor repräsentiert den relativen Verbrauch für einen Monat (1.0 = Durchschnitt).
+# def saisonale_schwankungen_modellieren(spalten=None):
+#     """
+#     Glättet die saisonalen Schwankungen basierend auf den monatlichen Anteilen, die in Summe 1 ergeben.
+#     Die Spalten WT, SA und FT werden separat betrachtet.
 
-    :param spalten: Liste der Spaltennamen, für die die saisonalen Schwankungen berechnet werden sollen.
-                    Falls None, wird eine Standardliste verwendet.
-    :return: Dictionary mit monatlichen Faktoren für jede Spalte im Format:
-             {'WT': [1.0, 0.9, ..., 1.1], 'SA': [...], 'FT': [...]}
-    """
-    if spalten is None:
-        spalten = ['WT', 'SA', 'FT']
+#     :param spalten: Dictionary mit monatlichen Anteilen für jede Spalte im Format:
+#                     {'WT': [0.1, 0.1, ..., 0.1], 'SA': [...], 'FT': [...]}
+#                     Die Werte jeder Spalte müssen in Summe 1 ergeben.
+#     :return: Dictionary mit geglätteten monatlichen Faktoren für jede Spalte.
+#     """
+#     if spalten is None:
+#         raise ValueError("Es müssen monatliche Anteile für jede Spalte übergeben werden.")
 
-    # Tage im Jahr (1 bis 365)
-    tage = np.arange(1, 366)
-    
-    # Jahreszeitliche Grundschwingung (Hauptmaximum im Winter)
-    saison = 0.01 * np.cos(2 * np.pi * (tage - 15) / 365)
-    
-    # Weihnachtseffekt (Spitze im Dezember)
-    weihnachten = 0.02 * np.exp(-((tage - 350) / 10) ** 2)
-    
-    # Gesamte Schwankung
-    schwankung = 1.0 + saison + weihnachten
-    
-    # Durchschnittliche Faktoren für jeden Monat berechnen
-    tage_pro_monat = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    monatliche_faktoren = [
-        np.mean(schwankung[sum(tage_pro_monat[:i]):sum(tage_pro_monat[:i + 1])]) for i in range(12)
-    ]
-    
-    # Erstelle ein Dictionary mit den gleichen Faktoren für jede Spalte
-    faktor_dict = {spalte: monatliche_faktoren for spalte in spalten}
-    
-    return faktor_dict
+#     # Validierung der Eingaben
+#     for spalte, anteile in spalten.items():
+#         if not np.isclose(sum(anteile), 1.0):
+#             raise ValueError(f"Die monatlichen Anteile für '{spalte}' müssen in Summe 1 ergeben.")
+#         if len(anteile) != 12:
+#             raise ValueError(f"Die monatlichen Anteile für '{spalte}' müssen genau 12 Werte enthalten.")
+
+#     # Glättung der monatlichen Anteile
+#     geglättete_faktoren = {}
+#     for spalte, anteile in spalten.items():
+#         # Wiederhole die Werte zyklisch, um Übergänge zwischen Dezember und Januar zu glätten
+#         zyklische_anteile = np.concatenate(([anteile[-1]], anteile, [anteile[0]]))
+        
+#         # Glätte die Werte mit einem Gauß-Filter
+#         geglättet = gaussian_filter1d(zyklische_anteile, sigma=1.0)
+        
+#         # Entferne die zusätzlichen Werte und normiere die geglätteten Anteile
+#         geglättet = geglättet[1:-1]
+#         geglättet /= np.sum(geglättet)  # Normierung, damit die Summe wieder 1 ergibt
+        
+#         geglättete_faktoren[spalte] = geglättet.tolist()
+
+#     return geglättete_faktoren
 
 
 # Aufruf der Funktion
@@ -235,10 +240,10 @@ df_Lastprofil_EMob_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [0.2, 
 df_Lastprofil_WP_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [1, 1, 1, 1]), 'SA': ([7, 14, 20], [1, 1, 1]), 'FT': ([1, 12, 18], [1, 1, 1])}, decay_rate = 0.0)
 
 
-monatliche_faktoren = saisonale_schwankungen_modellieren()
+monatliche_faktoren = {'WT': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'SA': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'FT': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19]}
 
 df_Lastprofil_EMob_jahr = auf_monate_erweitern(df_Lastprofil_EMob_tag,)
-df_Lastprofil_WP_jahr = auf_monate_erweitern(df_Lastprofil_WP_tag, )
+df_Lastprofil_WP_jahr = auf_monate_erweitern(df_Lastprofil_WP_tag, monatliche_faktoren)
 
 
 print('Ende des Lastprofil modellieren Skripts')
