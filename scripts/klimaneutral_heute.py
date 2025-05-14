@@ -175,9 +175,9 @@ energietraeger_gebäude = [
     ('Rohbenzin',                               'Strom', None),
     ('Flugturbinenenkraftstoff',                'E-Fules', None),#
     ('Dieselkraftstoff',                        'Wasserstoff', None),#
-    ('Heizöl leicht',                           'Strom', 0.33),#
-    ('Heizöl schwer',                           'Strom', None),
-    ('Petrolkoks',                              'Strom', None),
+    ('Heizöl leicht',                           'Wärmepumpen', 0.5),#
+    ('Heizöl schwer',                           'Wärmepumpen', 0.5),
+    ('Petrolkoks',                              'Wärmepumpen', 0.5),
     ('Flüssigas',                               'Wasserstoff', None),#
     ('Raffeneriegas',                           'Strom', None),
     ('Andere Mineralölprodukte',                'Wasserstoff', None),#
@@ -232,7 +232,7 @@ energietraeger_industrie = [
     ('Fernwärme',                               'Strom', None),
    # ('Primärenergieträger',                     'Strom', None),
    # ('Sekundärenergieträger',                   'Strom', None),
-    ('Summe',                                   'Summe_Gebäude', 0.82 ),# Nach Studienarbeit. Nachvollziehbar durch nutzung der Umweltwärme, welche hier nicht mit umgelagert wird.
+    ('Summe',                                   'Summe_Industrie', 0.82 ),# Nach Studienarbeit. Nachvollziehbar durch nutzung der Umweltwärme, welche hier nicht mit umgelagert wird.
 ]
 
 
@@ -257,7 +257,7 @@ result_industrie = extrahieren_und_zuordnen(df_AGEB_benannt, sektor_industrie, e
 übersicht_gesamt.loc['Summe_Energieträger'] = übersicht_gesamt.sum(numeric_only=True)
 
 
-übersicht_gesamt.to_excel(r'data\Ausgabe\Energieträger_Übersicht_kn_heute_mit_wp.xlsx')
+übersicht_gesamt.to_excel(r'data\Ausgabe\Energieträger_Übersicht_kn_heute_mit_wp_neu.xlsx')
 
 print("Ende des bedarf_klimaneutral_heute Skripts")
 # %%

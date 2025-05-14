@@ -85,10 +85,37 @@ vergleich_23 = inst_Leistung_vs_max_Werte(df_Nettostromerzeugung_23, df_inst_Str
 vergleich_24 = inst_Leistung_vs_max_Werte(df_Nettostromerzeugung_24, df_inst_Strom_Leistung_24)
 
 
-pd.DataFrame.from_dict(vergleich_22, orient='index').to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_22.xlsx')
-pd.DataFrame(vergleich_23).to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_23.xlsx')
-pd.DataFrame(vergleich_24).to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_24.xlsx')
+#pd.DataFrame.from_dict(vergleich_22, orient='index').to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_22.xlsx')
+#pd.DataFrame(vergleich_23).to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_23.xlsx')
+#pd.DataFrame(vergleich_24).to_excel(r'data\Ausgabe\vergleich_maxwert_zu_inst_Leistung_24.xlsx')
 
+
+def volllaststunden_berechnen(df_zeitreihe, df_inst_Leistung):
+    """Berechnet die Volllaststunden für jede Technologie in der Zeitreihe.
+    param df_zeitreihe: DataFrame mit den Zeitreihendaten
+    param df_inst_Leistung: DataFrame mit den installierten Leistungen
+    return: DataFrame mit den Volllaststunden
+    """
+    # Konvertiere die Spaltennamen in Kleinbuchstaben für den Vergleich
+    df_zeitreihe_lower = df_zeitreihe.rename(columns=str.lower)
+    df_inst_Leistung_lower = df_inst_Leistung.rename(columns=str.lower)
+    
+    volllaststunden = {}
+    
+    for spalte in df_zeitreihe_lower.columns:
+        if spalte in df_inst_Leistung_lower.columns:
+            sum_wert = df_zeitreihe_lower[spalte].sum()/4                  # /4 Da Viertelstundenwerte
+            inst_leistung = df_inst_Leistung_lower[spalte].iloc[1] * 1000  # Annahme: Wert der installierten Leistung ist in der zweiten Zeile und auf MW
+            
+            if inst_leistung != 0:
+                volllaststunden[spalte] = sum_wert / inst_leistung  # Umrechnung auf Stunden pro Jahr
+            else:
+                volllaststunden[spalte] = None
+    
+    return pd.DataFrame.from_dict(volllaststunden, orient='index', columns=['Volllaststunden'])
+
+
+vollaststunden_22 = volllaststunden_berechnen(df_Nettostromerzeugung_22, df_inst_Strom_Leistung_22)
 
 #Kopie der Batteriespeicherstandsfunktion aus der Studienarbeit
 def modellierungsfunktion_Batteriespeicher(df, max_battery_output, max_gas_output):

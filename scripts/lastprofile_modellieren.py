@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 
 """Dieses Skript dient zum Erstellen von Lastprofilen in Anlehnung der des BDEW.
 Hierfür gibt es zunächst die Funktion 'def generiere_stufenfunktion', die mittels anpassbarer Stufen einen Tagesgang modelliert. Dazu muss die Uhrzeit und der Wert zu dieser festgelegt werden. Die festgelegten Punkte werden linear miteinander verbunden.
+Zusätzlich kann der Abfall der letzten Stufe bestimmt werden (decay_rate). Mitteles 'smoothing_sigma' kann die Glättung der Kurve eingestellt werden, so dass keine harten Stufen mehr entstehen.
 'def_auf_monate_erweitern' erweitert die Lastprofile auf monatliche Werte. Hierbei wird ein saisonaler Faktor berücksichtigt, der die Lastprofile an die Jahreszeiten anpasst. Es kann pro Monat ein Faktor festgelegt werden.
+Die daraus für das Jahr entstehende Stufenfunktion wird in dem verknüften Skript 'last_prog_strom.py' bei Erstellen einer Jahreszeitreihe geglättet, so dass die Stufen verschwinden. Dies wird bewusst erst an dieser Stelle getan, um möglichst die Form der Standardlastprofile einzuhalten, auch wenn diese dann harte Sprünge in den Monaten aufweisen. --> Hier kann noch verbessert werden.
 Die Funktion 'def_saisonale_schwankungen_modellieren' erstellt die saisonalen Faktoren für die einzelnen Monate mit Hilfe einer Cosinusfunktion."""
 #%% wöchentliche Lastprofile in tägliche Lastprofile umwandeln
 def weekly_to_daily_load(weekly_load=None, visualize=True):
@@ -196,6 +198,7 @@ def auf_monate_erweitern(df, seasonal_factors=None):
 
     return monthly_df
 
+
 # def saisonale_schwankungen_modellieren(spalten=None):
 #     """
 #     Glättet die saisonalen Schwankungen basierend auf den monatlichen Anteilen, die in Summe 1 ergeben.
@@ -239,11 +242,10 @@ def auf_monate_erweitern(df, seasonal_factors=None):
 df_Lastprofil_EMob_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [0.2, 0.5, 0.6, 1.0]), 'SA': ([7, 14, 20], [0.3, 0.5, 0.8]), 'FT': ([0, 12, 18], [0.1, 0.4, 0.7])}, decay_rate = 0.4)
 df_Lastprofil_WP_tag = generiere_stufenfunktion( {'WT': ([5,8, 12, 19], [1, 1, 1, 1]), 'SA': ([7, 14, 20], [1, 1, 1]), 'FT': ([1, 12, 18], [1, 1, 1])}, decay_rate = 0.0)
 
-
-monatliche_faktoren = {'WT': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'SA': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'FT': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19]}
+monatliche_faktoren_WP = {'WT':[0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'SA': [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19], 'FT':[0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19]}
 
 df_Lastprofil_EMob_jahr = auf_monate_erweitern(df_Lastprofil_EMob_tag,)
-df_Lastprofil_WP_jahr = auf_monate_erweitern(df_Lastprofil_WP_tag, monatliche_faktoren)
+df_Lastprofil_WP_jahr = auf_monate_erweitern(df_Lastprofil_WP_tag, monatliche_faktoren_WP)
 
 
 print('Ende des Lastprofil modellieren Skripts')

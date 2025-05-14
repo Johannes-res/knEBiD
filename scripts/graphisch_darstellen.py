@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 from last_prog_allg import df_22_kn as df
 
 #Hier noch Namen eintragen um Grafiken zu benennen
-df_name = 'df_22_kn_wp_dyn_emob_wp'  # Name des DataFrames für die Dateinamen der Grafiken
+df_name = 'df_22_kn_wp_dyn_emob_wp_thermie_geglättet'  # Name des DataFrames für die Dateinamen der Grafiken
 
 
 
@@ -218,7 +218,7 @@ def plot_weekly_aggregation(df, columns, week_start, title=None, ylabel=None, le
 #%% Grafik generieren
 
 # Grafik generieren für den Jahresgang
-selected_columns =       ['Biomasse', 'Wasserstoff','Thermie', 'Strom [MWh]','Energie_22_org [MWh]', 'Wärmepumpen', 'EMobilität']
+selected_columns =       ['Biomasse', 'Wasserstoff','Thermie', 'Strom [MWh]','Strom_22_org [MWh]', 'Wärmepumpen', 'EMobilität']
 custom_labels = selected_columns
 
 title =                 'Netzlast und modellierter Verbrauch für das Jahr 2022'

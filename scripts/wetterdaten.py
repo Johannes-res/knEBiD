@@ -1,17 +1,25 @@
+from meteostat import Stations, Daily
 from datetime import datetime
-import pandas as pd
-from meteostat import Hourly
 
+# Zeitraum definieren
 start = datetime(2022, 1, 1)
-end = datetime(2022, 12, 31, 23, 59)
+end = datetime(2022, 12, 31)
 
-data= Hourly(10637, start, end, timezone='Europe/Berlin')
-data = data.fetch()
+# Wetterstationen in Deutschland auswählen (z.B. 50 zufällige Stationen)
+stations = Stations().region('DE').inventory('daily', (start, end)).fetch(limit=50, sample=True)
+
+# Tageswerte laden und räumlich mitteln
+weather = Daily(stations, start, end)
+df = weather.aggregate('1D', spatial=True).fetch()
+
+# Die Spalte 'tavg' enthält die gemittelte Tagesdurchschnittstemperatur
+print(df[['tavg']])
 
 #ändere das dateformat in datetime auf werte ohne Zeitumstellung
-data.index = data.index.tz_convert('UTC')
-#data.index = pd.to_datetime(data.index, format='%H:%M:%S').time
+df.index = df.index.tz_localize('UTC')
+df.index = df.index.strftime('%Y-%m-%d')
 
+df.to_excel(r'data\Wetterdaten\durchschnitt_täglich_22.xlsx')
 
 
 print('meteostat skript beendet')

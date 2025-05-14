@@ -1,0 +1,23 @@
+
+
+
+
+
+Data Structure
+Each day is represented by a Pandas DataFrame row which provides the weather data recorded on that day. These are the different columns:
+
+Column	Description	Type
+station	The Meteostat ID of the weather station (only if query refers to multiple stations)	String
+time	The date	Datetime64
+tavg	The average air temperature in °C	Float64
+tmin	The minimum air temperature in °C	Float64
+tmax	The maximum air temperature in °C	Float64
+prcp	The daily precipitation total in mm	Float64
+snow	The snow depth in mm	Float64
+wdir	The average wind direction in degrees (°)	Float64
+wspd	The average wind speed in km/h	Float64
+wpgt	The peak wind gust in km/h	Float64
+pres	The average sea-level air pressure in hPa	Float64
+tsun	The daily sunshine total in minutes (m)	Float64
+
+https://dev.meteostat.net/python/daily.html#api

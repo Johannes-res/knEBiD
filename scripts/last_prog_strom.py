@@ -3,6 +3,8 @@
 import pandas as pd
 import holidays
 import numpy as np
+from scipy.interpolate import interp1d
+from scipy.integrate import quad
 
 from daten_einlesen import df_Nettostromerzeugung_22
 from daten_einlesen import df_Nettostromerzeugung_23
@@ -14,7 +16,7 @@ from daten_einlesen import df_Lastprofil_H25
 from daten_einlesen import df_Lastprofil_G25
 from lastprofile_modellieren import df_Lastprofil_EMob_jahr as df_e_mod
 from lastprofile_modellieren import df_Lastprofil_WP_jahr as df_WP
-from scipy.ndimage import gaussian_filter1d
+
 
 from klimaneutral_heute import übersicht_gesamt as kn_heute_ü
 
@@ -96,22 +98,26 @@ def ergänze_lastprofile(df_last, df_profil, name):
     
     return df_last
 
-def glätte_lastprofile_jährlich(df_last, spalte): #unbenutzt
-    """
-    Glättet die Zeitreihe in der angegebenen Spalte des DataFrames über das Jahr hinweg
-    mithilfe eines Gauß-Filters.
-    
-    :param df_last: DataFrame mit der Zeitreihe.
-    :param spalte: Name der Spalte, die geglättet werden soll.
-    :return: DataFrame mit geglätteter Zeitreihe.
-    """
-    # Wende den Gauß-Filter auf die Spalte an
-    df_last[spalte] = gaussian_filter1d(df_last[spalte], sigma=1)
-    
-    return df_last
-     
 
-def saisonschwankungen_modellieren(t):
+def glätten_monatliche_spruenge(series, window=96*31):
+
+    """
+    Glättet monatliche Sprünge in einer Zeitreihe mit Viertelstundenwerten.
+    Standardmäßig wird ein Fenster von 7 Tagen (96 Viertelstunden * 7) verwendet.
+    """
+    return series.rolling(window=window, center=True, min_periods=1).mean()
+
+def monate_stufenfrei_interpolieren(df, monthly_values): #aus monatlichen Stufenwerten wird eine Funktion generiert, die die saisonalen Schwankungen beschreibt
+    t = df.index.dayofyear
+    # Monatsmittelpunkte als Stützstellen
+    month_days = np.linspace(15, 365, 12)
+    # Interpolationsfunktion
+    interp_func = interp1d(month_days, monthly_values, kind='linear', fill_value='extrapolate')
+    
+        
+    return interp_func(t)
+
+def saisonschwankungen_modellieren(t): #Hier kann eine Funktion zur Simulation saisonaler Schwankungen definiert werden
     """
     Simuliert saisonale Schwankungen im Stromverbrauch (x = Tag 1-365)
     Gibt relativen Verbrauchsfaktor zurück (1.0 = Durchschnitt)
@@ -195,7 +201,11 @@ df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_G25, 'G2
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_Lastprofil_H25, 'H25')
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_e_mod, 'EMob')
 df_übersicht_22 = ergänze_lastprofile(df_übersicht_22, df_WP, 'WP')
-# df_übersicht_22 = glätte_lastprofile_jährlich(df_übersicht_22, 'WP')
+
+#Hier werden momentan noch die monatlichen Stufenwerte definiert und dann der Funktion 'monate_stufenfrei_interpolieren' übergeben, welche die Stufen glättet und so die saisonale Schwankung abbildet
+monatliche_faktoren_WP = [0.196,0.171,0.138,0.059,0.027,0.006,0.0,0.0,0.016,0.067,0.13,0.19]
+#df_übersicht_22['WP'] = monate_stufenfrei_interpolieren(df_übersicht_22, monatliche_faktoren_WP)
+df_übersicht_22['WP'] = glätten_monatliche_spruenge(df_übersicht_22['WP'])
 
 df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_G25, 'G25')
 df_übersicht_23 = ergänze_lastprofile(df_übersicht_23, df_Lastprofil_H25, 'H25')
@@ -212,99 +222,99 @@ df_übersicht_24 = ergänze_lastprofile(df_übersicht_24, df_WP, 'WP')
 #Die Werte für die E-Mobilität und Wärmepumpen sind noch nicht berücksichtigt, da diese erst in den Jahren 2045/46 relevant werden  
 
 
-df_übersicht_22 = modelliere_Sektorenzeitreihen(
-     df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     df_übersicht_22['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
-     df_AGEB_22.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
-     df_AGEB_22.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
-     df_AGEB_22.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
-     df_AGEB_22.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
-     0,                                                                                                      #Endstrombedarf der E-Mobilität
-     0,                                                                                                       #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
+# df_übersicht_22_neu = modelliere_Sektorenzeitreihen(
+#      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      df_übersicht_22['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
+#      df_AGEB_22.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
+#      df_AGEB_22.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
+#      df_AGEB_22.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
+#      df_AGEB_22.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
+#      0,                                                                                                      #Endstrombedarf der E-Mobilität
+#      0,                                                                                                       #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
 
-df_übersicht_23 = modelliere_Sektorenzeitreihen(
-     df_übersicht_23,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     df_übersicht_23['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
-     df_AGEB_23.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
-     df_AGEB_23.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
-     df_AGEB_23.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
-     df_AGEB_23.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
-     0,                                                                                                      #Endstrombedarf der E-Mobilität
-     0,                                                                                                       #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
-
-
-
-df_übersicht_24 = modelliere_Sektorenzeitreihen(
-     df_übersicht_24,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     df_übersicht_24['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
-     df_AGEB_24.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
-     df_AGEB_24.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
-     df_AGEB_24.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
-     df_AGEB_24.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
-     0,                                                                                                      #Endstrombedarf der E-Mobilität
-     0,                                                                                                       #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
-
-#Für die Strombedarfe des Jahres 2045 wurden die Mittelwerte der Metastudien von Agora und EWI (DENA) verwendet
-df_übersicht_45_22 = modelliere_Sektorenzeitreihen(
-     df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     767500000,                                                                                                 #Gesamtstrombedarf
-     351330000,                                                                                                 #Endstrombedarf der Industrie
-     90010000,                                                                                                  #Endstrombedarf des GHD
-     183590000,                                                                                                 #Endstrombedarf der Haushalte
-     100000000,                                                                                                 #Endstrombedarf des Verkehrs
-     42500000,                                                                                                  #Endstrombedarf der E-Mobilität
-     1,                                                                                                         #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
-
-df_übersicht_45_23 = modelliere_Sektorenzeitreihen(
-     df_übersicht_23,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     767500000,                                                                                                 #Gesamtstrombedarf
-     351330000,                                                                                                 #Endstrombedarf der Industrie
-     90010000,                                                                                                  #Endstrombedarf des GHD
-     183590000,                                                                                                 #Endstrombedarf der Haushalte
-     100000000,                                                                                                 #Endstrombedarf des Verkehrs
-     42500000,                                                                                                  #Endstrombedarf der E-Mobilität
-     1,                                                                                                         #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
+# df_übersicht_23_neu = modelliere_Sektorenzeitreihen(
+#      df_übersicht_23,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      df_übersicht_23['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
+#      df_AGEB_23.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
+#      df_AGEB_23.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
+#      df_AGEB_23.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
+#      df_AGEB_23.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
+#      0,                                                                                                      #Endstrombedarf der E-Mobilität
+#      0,                                                                                                       #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
 
 
-df_übersicht_45_24 = modelliere_Sektorenzeitreihen(
-     df_übersicht_24,                                                                                           #Zeitreihe, welche ergänzt werden soll
-     767500000,                                                                                                 #Gesamtstrombedarf
-     351330000,                                                                                                 #Endstrombedarf der Industrie
-     90010000,                                                                                                  #Endstrombedarf des GHD
-     183590000,                                                                                                 #Endstrombedarf der Haushalte
-     100000000,                                                                                                 #Endstrombedarf des Verkehrs
-     42500000,                                                                                                  #Endstrombedarf der E-Mobilität
-     1,                                                                                                         #Endstrombedarf der Wärmepumpen
-     0.5,                                                                                                       #Wichtung des Profils G25
-     0.5,                                                                                                       #Wichtung des Profils H25
-     0.5,                                                                                                       #Wichtung des Profils E-Mobilität
-     0.5                                                                                                        #Wichtung des Profils Wärmepumpen
-    )
+
+# df_übersicht_24_neu = modelliere_Sektorenzeitreihen(
+#      df_übersicht_24,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      df_übersicht_24['Energie [MWh]'].sum(),                                                                      #Gesamtstrombedarf
+#      df_AGEB_24.loc['Bergbau, Gew. v. Steinen u. Erden, Verarb. Gewerbe','Stromenergiemenge_anteilig [MWh]'],   #Endstrombedarf der Industrie
+#      df_AGEB_24.loc['Gewerbe, Handel, Dienstleistungen','Stromenergiemenge_anteilig [MWh]'],                    #Endstrombedarf des GHD
+#      df_AGEB_24.loc['Haushalte','Stromenergiemenge_anteilig [MWh]'],                                            #Endstrombedarf der Haushalte
+#      df_AGEB_24.loc['Verkehr insgesamt','Stromenergiemenge_anteilig [MWh]'],                                    #Endstrombedarf des Verkehrs
+#      0,                                                                                                      #Endstrombedarf der E-Mobilität
+#      0,                                                                                                       #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
+
+# #Für die Strombedarfe des Jahres 2045 wurden die Mittelwerte der Metastudien von Agora und EWI (DENA) verwendet
+# df_übersicht_45_22 = modelliere_Sektorenzeitreihen(
+#      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      767500000,                                                                                                 #Gesamtstrombedarf
+#      351330000,                                                                                                 #Endstrombedarf der Industrie
+#      90010000,                                                                                                  #Endstrombedarf des GHD
+#      183590000,                                                                                                 #Endstrombedarf der Haushalte
+#      100000000,                                                                                                 #Endstrombedarf des Verkehrs
+#      42500000,                                                                                                  #Endstrombedarf der E-Mobilität
+#      1,                                                                                                         #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
+
+# df_übersicht_45_23 = modelliere_Sektorenzeitreihen(
+#      df_übersicht_23,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      767500000,                                                                                                 #Gesamtstrombedarf
+#      351330000,                                                                                                 #Endstrombedarf der Industrie
+#      90010000,                                                                                                  #Endstrombedarf des GHD
+#      183590000,                                                                                                 #Endstrombedarf der Haushalte
+#      100000000,                                                                                                 #Endstrombedarf des Verkehrs
+#      42500000,                                                                                                  #Endstrombedarf der E-Mobilität
+#      1,                                                                                                         #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
+
+
+# df_übersicht_45_24 = modelliere_Sektorenzeitreihen(
+#      df_übersicht_24,                                                                                           #Zeitreihe, welche ergänzt werden soll
+#      767500000,                                                                                                 #Gesamtstrombedarf
+#      351330000,                                                                                                 #Endstrombedarf der Industrie
+#      90010000,                                                                                                  #Endstrombedarf des GHD
+#      183590000,                                                                                                 #Endstrombedarf der Haushalte
+#      100000000,                                                                                                 #Endstrombedarf des Verkehrs
+#      42500000,                                                                                                  #Endstrombedarf der E-Mobilität
+#      1,                                                                                                         #Endstrombedarf der Wärmepumpen
+#      0.5,                                                                                                       #Wichtung des Profils G25
+#      0.5,                                                                                                       #Wichtung des Profils H25
+#      0.5,                                                                                                       #Wichtung des Profils E-Mobilität
+#      0.5                                                                                                        #Wichtung des Profils Wärmepumpen
+#     )
 
 df_übersicht_22_klimaneutral = modelliere_Sektorenzeitreihen(
      df_übersicht_22,                                                                                           #Zeitreihe, welche ergänzt werden soll
@@ -322,30 +332,30 @@ df_übersicht_22_klimaneutral = modelliere_Sektorenzeitreihen(
     )
 
 
-df_22=df_übersicht_22.copy()
-df_23=df_übersicht_23.copy()
-df_24=df_übersicht_24.copy()
-df_45_22=df_übersicht_45_22.copy()
-df_45_23=df_übersicht_45_23.copy()
-df_45_24=df_übersicht_45_24.copy()
+# df_22=df_übersicht_22_neu.copy()
+# df_23=df_übersicht_23_neu.copy()
+# df_24=df_übersicht_24_neu.copy()
+# df_45_22=df_übersicht_45_22.copy()
+# df_45_23=df_übersicht_45_23.copy()
+# df_45_24=df_übersicht_45_24.copy()
 df_22_kn=df_übersicht_22_klimaneutral.copy()
 
 
 #Erstellen eines zweijährigen DataFrames mit den Zeitreihen der Jahre 22 und 23 als Basis
-df_45_46=pd.concat([df_45_22, df_45_23], axis=0)
-df_45_46_47=pd.concat([df_45_22, df_45_23, df_45_24], axis=0)
+# df_45_46=pd.concat([df_45_22, df_45_23], axis=0)
+# df_45_46_47=pd.concat([df_45_22, df_45_23, df_45_24], axis=0)
 
 def drop_für_Übersicht(df):
     df.drop(columns=['Last [MW]','Summe_Sektoren_modelliert','Tagestyp','Monat','G25','Industrie','GHD','Verkehr','Haushalte_stat','H25','EMob','WP','Anteil_Industrie', 'Anteil_GHD', 'Anteil_Haushalte_stat', 'Anteil_Verkehr', 'Anteil_EMobilität', 'Anteil_Wärmepumpen'], inplace=True)
     return df
-df_strom_22 = drop_für_Übersicht(df_22)
-df_strom_23 = drop_für_Übersicht(df_23)
-df_strom_34 = drop_für_Übersicht(df_24)
-df_strom_45_22 = drop_für_Übersicht(df_45_22)
-df_strom_45_23 = drop_für_Übersicht(df_45_23)
-df_strom_45_24 = drop_für_Übersicht(df_45_24)
-df_strom_45_46 = drop_für_Übersicht(df_45_46)
-df_strom_45_46_47 = drop_für_Übersicht(df_45_46_47) 
+# df_strom_22 = drop_für_Übersicht(df_22)
+# df_strom_23 = drop_für_Übersicht(df_23)
+# df_strom_34 = drop_für_Übersicht(df_24)
+# df_strom_45_22 = drop_für_Übersicht(df_45_22)
+# df_strom_45_23 = drop_für_Übersicht(df_45_23)
+# df_strom_45_24 = drop_für_Übersicht(df_45_24)
+# df_strom_45_46 = drop_für_Übersicht(df_45_46)
+# df_strom_45_46_47 = drop_für_Übersicht(df_45_46_47) 
 
 df_strom_22_kn = drop_für_Übersicht(df_22_kn)
 
