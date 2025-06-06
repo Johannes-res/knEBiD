@@ -10,9 +10,23 @@ import pandas as pd
 from daten_einlesen import df_bedarf, df_erzeuger_strom
 
 # Parameter laden
-df_parameter = pd.read_excel(r'data\Optimierungsgrößen - Copy.xlsx', index_col=0)
+df_parameter = pd.read_excel(r'data\Optimierungsgrößen.xlsx', index_col=0)
 
+#%%Variablenhandling
 
+technologien = df_parameter.index.tolist()
+
+#Energieträger-Attributzuordnung
+traeger_dict = {t: df_parameter.loc[t, 'Energieträger'] for t in df_parameter.index}
+
+energietraeger = list(set(traeger_dict.values()))
+
+#Art-Attributzuordnung
+art_dict = {t: df_parameter.loc[t, 'Art'] for t in df_parameter.index}
+
+technologieart = list(set(art_dict.values()))
+
+kosten = (df_parameter['Kosten'] * 1000).to_dict()
 
 # Nur die Spalten aus df_erzeuger_strom übernehmen, die auch im Index von df_parameter sind
 gemeinsame_techs = [t for t in df_erzeuger_strom.columns if t in df_parameter.index]
@@ -20,7 +34,7 @@ df_erzeuger_strom = df_erzeuger_strom[gemeinsame_techs]
 
 
 
-#Modell erstellen
+#%%Modell erstellen
 # zudem wird aus dem Dataframe df_bedarf der Index als Set T extrahiert, der die Zeitpunkte für die Optimierung darstellt.
 def create_energy_system_model(df_bedarf):
     model = pyo.ConcreteModel()
@@ -29,28 +43,25 @@ def create_energy_system_model(df_bedarf):
 
 
 def define_variables(model, df_parameter):
-    # Indizierte Variablen für Technologien erstellen
-    #dazu wird zunächst aus dem Dataframe der Parameter die Technologien extrahiert
-   
-    model.techs = pyo.Set(initialize=df_parameter.index.tolist(), ordered=True)
-    
+    # Sets für Technologien, Energieträger, Arten
+    model.techs = pyo.Set(initialize=technologien, ordered=True)
+    model.traeger = pyo.Set(initialize=energietraeger, ordered=True)
+    model.art = pyo.Set(initialize=technologieart, ordered=True)
 
-    # model.erz_techs = pyo.Set(within=model.techs,initialize=df_parameter[df_parameter['Art'] == 'Erzeuger'].index.tolist(), ordered=True)
-    # model.erz_techs_strom = pyo.Set(
-    #     within=model.erz_techs,
-    #     initialize=df_parameter[(df_parameter['Art'] == 'Erzeuger') & (df_parameter['Energieträger'] == 'Strom')].index.tolist(),
-    #     ordered=True)
-   # model.spe_techs = pyo.Set(within=model.techs,initialize=df_parameter[df_parameter['Art'] == 'Speicher'].index.tolist(), ordered=True)
-   # model.wan_techs = pyo.Set(within=model.techs,initialize=df_parameter[df_parameter['Art'] == 'Wandler'].index.tolist(), ordered=True)
-   
-    #nun folgen die indizierten Variablen für die unterschiedlichen Technologien
-   
-    # Kapazitäten der Technologien als Variable
-    model.leistung = pyo.Var(model.techs, within=pyo.NonNegativeReals,
-                             bounds=lambda m, t: (df_parameter.loc[t, 'untere Grenze [MW]'], df_parameter.loc[t, 'obere Grenze [MW]']))
-    # model.spe_kapazitaet = pyo.Var(model.spe_techs, model.T, within=pyo.NonNegativeReals,
-    #                          bounds=lambda m, t: (df_parameter.loc[t, 'untere Kapagrenze [MWh]'], df_parameter.loc[t, 'obere Kapagrenze [MWh]']))
+    # Dictionaries als Pyomo-Parameter (Mapping)
+    model.traeger_map = pyo.Param(model.techs, initialize=traeger_dict, within=pyo.Any)
+    model.art_map = pyo.Param(model.techs, initialize=art_dict, within=pyo.Any)
     
+    # Indizierte Variable nur für gültige Technologie-Träger-Kombinationen
+    model.inst_leistung_index = [(t, c) for t in model.techs for c in model.traeger if traeger_dict[t] == c]
+    model.inst_leistung = pyo.Var(
+        model.inst_leistung_index,
+        domain=pyo.NonNegativeReals,
+        bounds=lambda m, t, c: (
+            df_parameter.loc[t, 'untere Grenze [MW]'],
+            df_parameter.loc[t, 'obere Grenze [MW]']
+        )
+    )
     return model
 
 #Zielfunktion
@@ -59,7 +70,10 @@ def define_variables(model, df_parameter):
 def define_objective(model, df_parameter):
     # Kostenparameter
     def cost_rule(m):
-        return sum(df_parameter.loc[t, 'Kosten'] *1000* m.leistung[t] for t in m.techs) #invest/Kw in MW umrechnen
+        return sum(
+            kosten[t] * (m.inst_leistung[t, c] - df_parameter.loc[t, 'untere Grenze [MW]'])
+            for (t, c) in m.inst_leistung_index
+        )
     model.objective = pyo.Objective(rule=cost_rule, sense=pyo.minimize)
     return model
 
@@ -85,8 +99,9 @@ def define_constraints(model, df_bedarf):
     # Erzeugungsgleichung
     def generation_constraint_rule(m, time):
         return sum(
-            m.leistung[t] * m.Verf[t, time]
+            m.inst_leistung[t,'Strom'] * m.Verf[t, time]
             for t in m.techs
+            if m.art_map[t] == 'Erzeuger' and m.traeger_map[t] == 'Strom'
         ) >= m.Strombedarf[time]
     
     model.generation_constraint = pyo.Constraint(model.T, rule=generation_constraint_rule)
@@ -97,9 +112,9 @@ def solve_model(model):
     results = solver.solve(model, tee=True)
     if results.solver.termination_condition == pyo.TerminationCondition.optimal:
         print("Optimale Lösung gefunden:")
-        for t in model.techs:
-            print(f"{t}: {pyo.value(model.leistung[t]/1000):.2f} GW")
-            print(f"Kosten für {t}: {df_parameter.loc[t, 'Kosten'] * pyo.value(model.leistung[t]):.2f} Euro")
+        for (t, c) in model.inst_leistung_index:
+            print(f"{t} ({c}): {pyo.value(model.inst_leistung[t, c]/1000):.2f} GW")
+            print(f"Kosten für {t}: {pyo.value(kosten[t] * (model.inst_leistung[t, c] - df_parameter.loc[t, 'untere Grenze [MW]'])):.2f} Euro")
         print(f"Gesamtkosten: {pyo.value(model.objective):.2f} Euro")
     else:
         print("Keine optimale Lösung gefunden.")
