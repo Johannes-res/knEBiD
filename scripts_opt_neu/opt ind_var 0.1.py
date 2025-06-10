@@ -1,5 +1,5 @@
 #Hier wird Schritt für Schritt das Energiemodell und dessen Optimierung aufgebaut.
-# Als erstes wird nur der Sektor Strom betrachtet.
+# Als erstes wird nur der Sektor Strom betrachtet. Nur die Erzeugertechnologien gleichen den Strombedarf aus.
 # Die Optimierung wird mit dem Paket Pyomo durchgeführt.
 
 import pyomo.environ as pyo
@@ -26,7 +26,7 @@ art_dict = {t: df_parameter.loc[t, 'Art'] for t in df_parameter.index}
 
 technologieart = list(set(art_dict.values()))
 
-kosten = (df_parameter['Kosten'] * 1000).to_dict()
+kosten = (df_parameter['Kosten'] * 1000).to_dict() #Kosten mal 1000 um von €/kW in €/MW zu konvertieren
 
 # Nur die Spalten aus df_erzeuger_strom übernehmen, die auch im Index von df_parameter sind
 gemeinsame_techs = [t for t in df_erzeuger_strom.columns if t in df_parameter.index]
@@ -65,8 +65,8 @@ def define_variables(model, df_parameter):
     return model
 
 #Zielfunktion
-#die Summe der einzelnen Kosten für t in m.techs, also jeder Technologie wird mit der leistung der Technologie multipliziert
-# und die Summe wird minimiert.
+#die Summe der einzelnen Kosten für t in m.inst_leistung, also jede Technologie wird mit den Kosten der Technologie multipliziert
+# und die Summe wird minimiert. Die untere Grenze wird als Bestand angesehen, welcher die Kosten nicht beeinflusst.
 def define_objective(model, df_parameter):
     # Kostenparameter
     def cost_rule(m):
@@ -93,8 +93,7 @@ def define_constraints(model, df_bedarf):
     # Strombedarf als Parameter
     model.Strombedarf = pyo.Param(model.T, initialize=df_bedarf['Strom'].to_dict())
 
-   
-    
+    # Verfügbarkeit der Technologien als Parameter
     model.Verf = pyo.Param(model.techs, model.T, initialize=verf_dict, default=0)
     # Erzeugungsgleichung
     def generation_constraint_rule(m, time):
